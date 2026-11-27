@@ -11,6 +11,7 @@ import {
   Lock,
   LogOut,
   Monitor,
+  Play,
   Plus,
   RotateCcw,
   Save,
@@ -22,9 +23,12 @@ import { auth, googleProvider, isFirebaseConfigured, ADMIN_EMAIL } from '../lib/
 import { fetchPortfolioContent, savePortfolioContent } from '../lib/portfolioService';
 import { portfolioData as defaultData } from '../data/portfolioData';
 import PortfolioView from './PortfolioView';
+import LoadingScreen from './LoadingScreen';
 import VisualEditorPanel from './cms/VisualEditorPanel';
 import { Field, RichTextField, TextArea } from './cms/CmsFields';
+import { PhotoInput, VideoInput } from './cms/MediaPicker';
 import { moveItem } from '../lib/listUtils';
+import { estimateJsonKb } from '../lib/mediaUtils';
 
 export default function AdminCMS({ onExit }) {
   const [user, setUser] = useState(null);
@@ -35,6 +39,9 @@ export default function AdminCMS({ onExit }) {
   const [dbExists, setDbExists] = useState(false);
   const [workspaceMode, setWorkspaceMode] = useState('wysiwyg'); // 'wysiwyg' | 'content'
   const [selectedBlock, setSelectedBlock] = useState('hero');
+  const [previewPageSlug, setPreviewPageSlug] = useState(null);
+  const [selectedPageBlockIndex, setSelectedPageBlockIndex] = useState(null);
+  const [replayingLoader, setReplayingLoader] = useState(false);
   const [viewport, setViewport] = useState('desktop'); // 'desktop' | 'tablet' | 'mobile'
   const [activeTab, setActiveTab] = useState('profile');
   const [dirty, setDirty] = useState(false);
@@ -235,8 +242,30 @@ export default function AdminCMS({ onExit }) {
       ? 'max-w-[768px]'
       : 'max-w-full';
 
+  const customPages = draft.siteConfig?.pages || [];
+  const docKb = estimateJsonKb(draft);
+
+  const handleSelectBlock = (blockId) => {
+    setSelectedBlock(blockId);
+    if (blockId === 'pages') {
+      if (!previewPageSlug && customPages.length > 0) {
+        setPreviewPageSlug(customPages[0].slug);
+      }
+    } else if (['sections', 'hero', 'arsenal', 'projects', 'reel', 'leadership'].includes(blockId)) {
+      setPreviewPageSlug(null);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-[#09090b] text-zinc-100 flex flex-col">
+      {replayingLoader && (
+        <LoadingScreen
+          config={draft.siteConfig?.loader}
+          brandName={draft.personal?.displayName || draft.personal?.name}
+          lottieConfig={draft.siteConfig?.lottie}
+          onDone={() => setReplayingLoader(false)}
+        />
+      )}
       {/* Top Studio Header */}
       <header className="sticky top-0 z-40 bg-[#09090b]/95 backdrop-blur-md border-b border-white/[0.08]">
         <div className="max-w-full px-4 sm:px-6 py-3 flex flex-wrap items-center justify-between gap-3">
@@ -413,17 +442,68 @@ export default function AdminCMS({ onExit }) {
               draft={draft}
               updateDraft={updateDraft}
               selectedBlock={selectedBlock}
-              onSelectBlock={setSelectedBlock}
+              onSelectBlock={handleSelectBlock}
+              previewPageSlug={previewPageSlug}
+              onSelectPreviewPageSlug={(slug) => {
+                setPreviewPageSlug(slug);
+                if (slug) setSelectedBlock('pages');
+              }}
+              selectedPageBlockIndex={selectedPageBlockIndex}
+              onSelectPageBlockIndex={setSelectedPageBlockIndex}
+              onReplayLoader={() => setReplayingLoader(true)}
             />
           </div>
 
           {/* Right Live Interactive WYSIWYG Canvas (8 cols) */}
           <div className="lg:col-span-8 xl:col-span-8 bg-[#050506] p-4 sm:p-6 overflow-y-auto">
-            <div className="flex items-center justify-between mb-3 text-[11px] font-mono text-zinc-500">
-              <span>Live WYSIWYG Canvas — click any section to inspect & edit</span>
-              <span className="text-zinc-400">
-                Active Block: <span className="text-accent">{selectedBlock}</span>
-              </span>
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-3 text-[11px] font-mono text-zinc-500">
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setPreviewPageSlug(null);
+                    if (selectedBlock === 'pages') setSelectedBlock('hero');
+                  }}
+                  className={`px-2 py-0.5 rounded border transition-colors ${
+                    !previewPageSlug
+                      ? 'bg-accent text-white border-accent'
+                      : 'bg-[#101012] text-zinc-400 border-white/[0.08] hover:text-white'
+                  }`}
+                >
+                  Home
+                </button>
+                {customPages.map((p) => (
+                  <button
+                    key={p.id || p.slug}
+                    type="button"
+                    onClick={() => {
+                      setPreviewPageSlug(p.slug);
+                      setSelectedBlock('pages');
+                    }}
+                    className={`px-2 py-0.5 rounded border transition-colors ${
+                      previewPageSlug === p.slug
+                        ? 'bg-accent text-white border-accent'
+                        : 'bg-[#101012] text-zinc-400 border-white/[0.08] hover:text-white'
+                    }`}
+                  >
+                    /{p.slug}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setReplayingLoader(true)}
+                  className="inline-flex items-center gap-1 text-zinc-400 hover:text-white transition-colors"
+                >
+                  <Play className="w-3 h-3 text-accent" />
+                  <span>Replay Intro</span>
+                </button>
+                <span className={docKb > 850 ? 'text-accent' : 'text-zinc-500'}>
+                  {docKb} KB / 950 KB
+                </span>
+              </div>
             </div>
 
             <div
@@ -431,9 +511,19 @@ export default function AdminCMS({ onExit }) {
             >
               <PortfolioView
                 content={draft}
+                activePageSlug={previewPageSlug}
                 isPreview
                 selectedBlock={selectedBlock}
-                onSelectBlock={setSelectedBlock}
+                onSelectBlock={handleSelectBlock}
+                onNavigatePage={(slug) => {
+                  setPreviewPageSlug(slug);
+                  setSelectedBlock(slug ? 'pages' : 'hero');
+                }}
+                selectedPageBlockIndex={selectedPageBlockIndex}
+                onSelectPageBlockIndex={(idx) => {
+                  setSelectedBlock('pages');
+                  setSelectedPageBlockIndex(idx);
+                }}
               />
             </div>
           </div>
@@ -845,20 +935,7 @@ export default function AdminCMS({ onExit }) {
                       }
                     />
                     <Field
-                      label="Thumbnail Image URL (optional)"
-                      value={project.imageUrl || ''}
-                      mono
-                      placeholder="https://..."
-                      onChange={(v) =>
-                        updateDraft((d) => {
-                          const projects = [...d.projects];
-                          projects[idx] = { ...projects[idx], imageUrl: v };
-                          return { ...d, projects };
-                        })
-                      }
-                    />
-                    <Field
-                      label="Live Demo / Video URL"
+                      label="Live Demo URL"
                       value={project.demoUrl}
                       mono
                       placeholder="https://..."
@@ -883,6 +960,30 @@ export default function AdminCMS({ onExit }) {
                         })
                       }
                     />
+                    <VideoInput
+                      label="Project Video (YouTube, Vimeo, Drive, MP4)"
+                      value={project.videoUrl || ''}
+                      onChange={(v) =>
+                        updateDraft((d) => {
+                          const projects = [...d.projects];
+                          projects[idx] = { ...projects[idx], videoUrl: v };
+                          return { ...d, projects };
+                        })
+                      }
+                    />
+                    <div className="md:col-span-2">
+                      <PhotoInput
+                        label="Project Thumbnail Photo (Upload or URL)"
+                        value={project.imageUrl || ''}
+                        onChange={(v) =>
+                          updateDraft((d) => {
+                            const projects = [...d.projects];
+                            projects[idx] = { ...projects[idx], imageUrl: v };
+                            return { ...d, projects };
+                          })
+                        }
+                      />
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1003,26 +1104,37 @@ export default function AdminCMS({ onExit }) {
                   </div>
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Field
-                      label="Description"
-                      value={frame.description}
-                      onChange={(v) =>
-                        updateDraft((d) => {
-                          const gallery = [...d.gallery];
-                          gallery[idx] = { ...gallery[idx], description: v };
-                          return { ...d, gallery };
-                        })
-                      }
-                    />
-                    <Field
-                      label="Still Image URL (optional)"
+                    <div className="md:col-span-2">
+                      <Field
+                        label="Description"
+                        value={frame.description}
+                        onChange={(v) =>
+                          updateDraft((d) => {
+                            const gallery = [...d.gallery];
+                            gallery[idx] = { ...gallery[idx], description: v };
+                            return { ...d, gallery };
+                          })
+                        }
+                      />
+                    </div>
+                    <PhotoInput
+                      label="Still Photo (Upload or URL)"
                       value={frame.imageUrl || ''}
-                      mono
-                      placeholder="https://..."
                       onChange={(v) =>
                         updateDraft((d) => {
                           const gallery = [...d.gallery];
                           gallery[idx] = { ...gallery[idx], imageUrl: v };
+                          return { ...d, gallery };
+                        })
+                      }
+                    />
+                    <VideoInput
+                      label="Video Reel (YouTube, Vimeo, Drive, MP4)"
+                      value={frame.videoUrl || ''}
+                      onChange={(v) =>
+                        updateDraft((d) => {
+                          const gallery = [...d.gallery];
+                          gallery[idx] = { ...gallery[idx], videoUrl: v };
                           return { ...d, gallery };
                         })
                       }

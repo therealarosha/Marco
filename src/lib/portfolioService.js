@@ -2,6 +2,7 @@ import { doc, getDoc, onSnapshot, setDoc, serverTimestamp } from 'firebase/fires
 import { db, isFirebaseConfigured } from './firebase';
 import { portfolioData as defaultData } from '../data/portfolioData';
 import { normalizeHex } from './themeUtils';
+import { estimateJsonKb } from './mediaUtils';
 
 const COLLECTION_NAME = 'portfolio';
 const DOC_ID = 'content';
@@ -15,6 +16,10 @@ function mergeSiteConfig(remoteConfig) {
     theme: {
       ...base.theme,
       ...(remoteConfig.theme || {}),
+    },
+    loader: {
+      ...base.loader,
+      ...(remoteConfig.loader || {}),
     },
     lottie: {
       ...base.lottie,
@@ -50,6 +55,9 @@ function mergeSiteConfig(remoteConfig) {
         ? remoteConfig.footer.buttons
         : structuredClone(base.footer.buttons),
     },
+    pages: Array.isArray(remoteConfig.pages)
+      ? remoteConfig.pages
+      : structuredClone(base.pages),
   };
 }
 
@@ -172,6 +180,15 @@ function normalizeOptionalUrl(url) {
   return `https://${trimmed}`;
 }
 
+function sanitizeSlug(raw, fallbackIndex) {
+  const cleaned = String(raw ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return cleaned || `page-${fallbackIndex + 1}`;
+}
+
 export function sanitizeAndValidateContent(content) {
   const personal = content.personal || {};
   const contacts = personal.contacts || {};
@@ -215,10 +232,16 @@ export function sanitizeAndValidateContent(content) {
   const siteConfig = mergeSiteConfig(content.siteConfig);
   siteConfig.theme.accentColor = normalizeHex(siteConfig.theme.accentColor);
   siteConfig.lottie.url = normalizeOptionalUrl(siteConfig.lottie.url);
+  siteConfig.loader.lottieUrl = normalizeOptionalUrl(siteConfig.loader.lottieUrl);
+
+  siteConfig.pages = (siteConfig.pages || []).slice(0, 15).map((page, idx) => ({
+    ...page,
+    slug: sanitizeSlug(page.slug || page.title, idx),
+  }));
 
   const lottieJson = String(siteConfig.lottie.customJson ?? '');
   if (lottieJson.length > 300000) {
-    throw new Error('Inline Lottie JSON exceeds 300 KB limit. Host the .json file externally and use Lottie URL instead.');
+    throw new Error('Inline Lottie JSON exceeds 300 KB limit. Use an external URL instead.');
   }
   if (siteConfig.lottie.enabled && siteConfig.lottie.sourceType === 'json' && lottieJson.trim()) {
     try {
@@ -228,7 +251,7 @@ export function sanitizeAndValidateContent(content) {
     }
   }
 
-  return {
+  const clean = {
     personal: {
       name,
       displayName: name,
@@ -259,6 +282,14 @@ export function sanitizeAndValidateContent(content) {
     leadershipPillars,
     siteConfig,
   };
+
+  if (estimateJsonKb(clean) > 950) {
+    throw new Error(
+      'Total document size exceeds 950 KB (Firestore 1 MB limit). Replace a few uploaded photos with external image URLs.'
+    );
+  }
+
+  return clean;
 }
 
 export async function savePortfolioContent(content) {

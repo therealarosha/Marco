@@ -32,8 +32,11 @@ rules_version = '2';
 //   - projects: list<map> (required, 0..40 items)
 //   - gallery: list<map> (required, 0..40 items)
 //   - leadershipPillars: list<map> (required, 1..8 items)
-//   - siteConfig: map (required, exact keys: theme, lottie, sections, navbar, hero, footer)
+//   - siteConfig: map (required, exact keys: theme, loader, lottie, sections, navbar, hero, footer, pages)
 //       - theme: map (accentColor hex, cardRadius <= 30 chars, showDotGrid bool)
+//       - loader: map (enabled bool, style in ['telemetry','shutter','lottie'],
+//                      durationMs 500..5000, oncePerSession bool, tagline <= 200 chars,
+//                      lottiePreset <= 50 chars, lottieUrl '' or http(s))
 //       - lottie: map (enabled bool, sourceType in ['preset','url','json'], preset <= 50 chars,
 //                      url '' or http(s), customJson <= 300000 chars, scope in ['global','hero'],
 //                      opacity 0..1, speed 0.1..5, blur 0..20, loop bool, monochrome bool)
@@ -44,6 +47,7 @@ rules_version = '2';
 //                    profileLabel/academiaLabel/craftLabel <= 80, craftTitle <= 160,
 //                    craftDesc <= 500, craftTools list 0..20, buttons list 0..10)
 //       - footer: map (eyebrow <= 80, heading <= 300, subheading <= 600, buttons list 0..10)
+//       - pages: list<map> (required, 0..15 items)
 //   - updatedAt: timestamp (required, must equal request.time via serverTimestamp())
 //
 // Security & Design Notes:
@@ -196,6 +200,28 @@ service cloud.firestore {
         && theme.showDotGrid is bool;
     }
 
+    function isValidSiteLoader(loader) {
+      let keys = [
+        'enabled',
+        'style',
+        'durationMs',
+        'oncePerSession',
+        'tagline',
+        'lottiePreset',
+        'lottieUrl'
+      ];
+      return loader is map
+        && hasOnlyAllowedFields(loader, keys)
+        && hasRequiredFields(loader, keys)
+        && loader.enabled is bool
+        && loader.style in ['telemetry', 'shutter', 'lottie']
+        && loader.durationMs is number && loader.durationMs >= 500 && loader.durationMs <= 5000
+        && loader.oncePerSession is bool
+        && isBoundedString(loader.tagline, 0, 200)
+        && isBoundedString(loader.lottiePreset, 0, 50)
+        && isValidOptionalUrl(loader.lottieUrl);
+    }
+
     function isValidSiteLottie(lottie) {
       let keys = [
         'enabled',
@@ -288,16 +314,18 @@ service cloud.firestore {
     }
 
     function isValidSiteConfig(siteConfig) {
-      let keys = ['theme', 'lottie', 'sections', 'navbar', 'hero', 'footer'];
+      let keys = ['theme', 'loader', 'lottie', 'sections', 'navbar', 'hero', 'footer', 'pages'];
       return siteConfig is map
         && hasOnlyAllowedFields(siteConfig, keys)
         && hasRequiredFields(siteConfig, keys)
         && isValidSiteTheme(siteConfig.theme)
+        && isValidSiteLoader(siteConfig.loader)
         && isValidSiteLottie(siteConfig.lottie)
         && isValidListBounds(siteConfig.sections, 1, 12)
         && isValidSiteNavbar(siteConfig.navbar)
         && isValidSiteHero(siteConfig.hero)
-        && isValidSiteFooter(siteConfig.footer);
+        && isValidSiteFooter(siteConfig.footer)
+        && isValidListBounds(siteConfig.pages, 0, 15);
     }
 
     function isValidPortfolioContent(data) {

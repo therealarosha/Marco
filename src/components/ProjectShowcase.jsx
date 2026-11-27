@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { ArrowUpRight, Code2, Film, X } from 'lucide-react';
 import { GithubIcon } from './SocialIcons';
 import RichText from './RichText';
+import MediaRenderer from './MediaRenderer';
+import { parseVideoSource } from '../lib/mediaUtils';
 
 export default function ProjectShowcase({ projects, sectionMeta, theme }) {
   const [activeFilter, setActiveFilter] = useState('all');
@@ -66,53 +68,64 @@ export default function ProjectShowcase({ projects, sectionMeta, theme }) {
 
         {/* Minimalist Project Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredProjects.map((project) => (
-            <div
-              key={project.id}
-              onClick={() => setSelectedProject(project)}
-              className={`minimal-card ${cardRadius} p-6 cursor-pointer group flex flex-col justify-between`}
-            >
-              <div>
-                <div className="flex items-center justify-between mb-5">
-                  <span className="text-[11px] font-mono text-zinc-500 flex items-center gap-2">
-                    {project.featured && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-accent inline-block" />
-                    )}
-                    <span>{project.tag}</span>
-                  </span>
+          {filteredProjects.map((project) => {
+            const cardThumb =
+              project.imageUrl || parseVideoSource(project.videoUrl)?.thumbnailUrl || '';
+            return (
+              <div
+                key={project.id}
+                onClick={() => setSelectedProject(project)}
+                className={`minimal-card ${cardRadius} p-6 cursor-pointer group flex flex-col justify-between`}
+              >
+                <div>
+                  <div className="flex items-center justify-between mb-5">
+                    <span className="text-[11px] font-mono text-zinc-500 flex items-center gap-2">
+                      {project.featured && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-accent inline-block" />
+                      )}
+                      <span>{project.tag}</span>
+                    </span>
 
-                  <ArrowUpRight className="w-4 h-4 text-zinc-600 group-hover:text-white transition-colors" />
+                    <ArrowUpRight className="w-4 h-4 text-zinc-600 group-hover:text-white transition-colors" />
+                  </div>
+
+                  <h3 className="text-lg font-semibold text-white group-hover:text-accent transition-colors">
+                    {project.title}
+                  </h3>
+
+                  {cardThumb && (
+                    <div className="mt-3 relative">
+                      <MediaRenderer
+                        imageUrl={cardThumb}
+                        title={project.title}
+                        aspectClass="aspect-[16/9]"
+                        monochrome
+                        preferVideo={false}
+                        className="rounded-lg border border-white/[0.06]"
+                      />
+                      {project.videoUrl && (
+                        <span className="absolute bottom-2 right-2 text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/75 text-white border border-white/10">
+                          VIDEO
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <p className="mt-2.5 text-xs text-zinc-400 line-clamp-3 leading-relaxed">
+                    {project.summary}
+                  </p>
                 </div>
 
-                <h3 className="text-lg font-semibold text-white group-hover:text-accent transition-colors">
-                  {project.title}
-                </h3>
-
-                {project.imageUrl && (
-                  <div className="mt-3 aspect-[16/9] rounded-lg overflow-hidden border border-white/[0.06] bg-[#09090b]">
-                    <img
-                      src={project.imageUrl}
-                      alt={project.title}
-                      className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-300"
-                      loading="lazy"
-                    />
-                  </div>
-                )}
-
-                <p className="mt-2.5 text-xs text-zinc-400 line-clamp-3 leading-relaxed">
-                  {project.summary}
-                </p>
+                <div className="mt-6 pt-4 border-t border-white/[0.06] flex flex-wrap gap-x-3 gap-y-1">
+                  {project.techStack.map((tech, i) => (
+                    <span key={i} className="text-[10px] font-mono text-zinc-500">
+                      {tech}
+                    </span>
+                  ))}
+                </div>
               </div>
-
-              <div className="mt-6 pt-4 border-t border-white/[0.06] flex flex-wrap gap-x-3 gap-y-1">
-                {project.techStack.map((tech, i) => (
-                  <span key={i} className="text-[10px] font-mono text-zinc-500">
-                    {tech}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
       </div>
@@ -124,7 +137,7 @@ export default function ProjectShowcase({ projects, sectionMeta, theme }) {
           onClick={() => setSelectedProject(null)}
         >
           <div
-            className={`bg-[#0e0e10] border border-white/[0.12] ${cardRadius} max-w-xl w-full p-6 sm:p-8 relative`}
+            className={`bg-[#0e0e10] border border-white/[0.12] ${cardRadius} max-w-xl w-full p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto`}
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -147,15 +160,16 @@ export default function ProjectShowcase({ projects, sectionMeta, theme }) {
               {selectedProject.summary}
             </p>
 
-            {/* Minimalist Monochrome Preview Box */}
-            {selectedProject.imageUrl ? (
-              <div className="rounded-lg bg-[#09090b] border border-white/[0.08] mb-6 overflow-hidden aspect-video">
-                <img
-                  src={selectedProject.imageUrl}
-                  alt={selectedProject.title}
-                  className="w-full h-full object-cover"
-                />
-              </div>
+            {/* Video / Image / Minimalist Placeholder */}
+            {selectedProject.videoUrl || selectedProject.imageUrl ? (
+              <MediaRenderer
+                videoUrl={selectedProject.videoUrl}
+                imageUrl={selectedProject.imageUrl}
+                title={selectedProject.title}
+                aspectClass="aspect-video"
+                className="rounded-lg border border-white/[0.08] mb-6"
+                preferVideo
+              />
             ) : (
               <div className="rounded-lg bg-[#09090b] border border-white/[0.08] p-6 mb-6 flex flex-col items-center justify-center text-center min-h-[140px] relative overflow-hidden">
                 {showDotGrid && <div className="absolute inset-0 bg-subtle-dots opacity-50" />}
@@ -173,7 +187,7 @@ export default function ProjectShowcase({ projects, sectionMeta, theme }) {
                       : 'Interactive Build Preview'}
                   </span>
                   <span className="text-[11px] text-zinc-500 mt-1">
-                    Add an image URL or demo link via the CMS (#/admin)
+                    Upload a photo or attach a YouTube/MP4 video via the CMS (#/admin)
                   </span>
                 </div>
               </div>

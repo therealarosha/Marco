@@ -184,6 +184,15 @@ export const portfolioData = {
       cardRadius: "rounded-xl",
       showDotGrid: true
     },
+    loader: {
+      enabled: true,
+      style: "telemetry",
+      durationMs: 1450,
+      oncePerSession: false,
+      tagline: "VIBE CODING • CINEMA • APPLIED SCIENCE",
+      lottiePreset: "orbital",
+      lottieUrl: ""
+    },
     lottie: {
       enabled: true,
       sourceType: "preset",
@@ -278,6 +287,7 @@ export const portfolioData = {
         { id: "btn-email", label: "Send Email", action: "mailto", href: "", variant: "accent", visible: true },
         { id: "btn-copy", label: "", action: "copy", href: "", variant: "outline", visible: true }
       ]
-    }
+    },
+    pages: []
   }
 };

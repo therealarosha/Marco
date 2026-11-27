@@ -7,6 +7,7 @@ import FilmStripGallery from './FilmStripGallery';
 import LeadershipSection from './LeadershipSection';
 import FooterAndContact from './FooterAndContact';
 import LottieBackground from './LottieBackground';
+import CustomPageView from './CustomPageView';
 import { applyThemeToRoot } from '../lib/themeUtils';
 
 function PreviewSelectableBlock({
@@ -53,14 +54,19 @@ function PreviewSelectableBlock({
 
 export default function PortfolioView({
   content,
+  activePageSlug = null,
   isPreview = false,
   selectedBlock = null,
   onSelectBlock = null,
+  onNavigatePage = null,
+  selectedPageBlockIndex = null,
+  onSelectPageBlockIndex = null,
 }) {
   const siteConfig = content.siteConfig || {};
   const theme = siteConfig.theme || {};
   const accentColor = theme.accentColor;
   const lottieConfig = siteConfig.lottie || {};
+  const pages = siteConfig.pages || [];
   const sections = siteConfig.sections || [
     { id: 'hero', label: 'Hero & Bento', visible: true },
     { id: 'arsenal', label: 'Code & Cinema Arsenal', visible: true },
@@ -72,6 +78,22 @@ export default function PortfolioView({
   useEffect(() => {
     applyThemeToRoot({ accentColor });
   }, [accentColor]);
+
+  const activeCustomPage = activePageSlug
+    ? pages.find(
+        (p) =>
+          p.slug === activePageSlug && (isPreview || p.published !== false)
+      ) || null
+    : null;
+
+  const handleGoHome = () => {
+    if (isPreview && onNavigatePage) {
+      onNavigatePage(null);
+    } else {
+      window.location.hash = '';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
 
   const renderSection = (sec) => {
     switch (sec.id) {
@@ -145,24 +167,37 @@ export default function PortfolioView({
         <Navbar
           personal={content.personal}
           navbarConfig={siteConfig.navbar}
+          pages={pages}
           isPreview={isPreview}
+          onPreviewNavigate={onNavigatePage}
         />
       </PreviewSelectableBlock>
 
       <main className="relative z-10">
-        {sections.map((sec) => (
-          <PreviewSelectableBlock
-            key={sec.id}
-            blockId={sec.id}
-            label={sec.label}
+        {activePageSlug ? (
+          <CustomPageView
+            page={activeCustomPage}
+            theme={theme}
+            onNavigateHome={handleGoHome}
             isPreview={isPreview}
-            selectedBlock={selectedBlock}
-            onSelectBlock={onSelectBlock}
-            hidden={sec.visible === false}
-          >
-            {renderSection(sec)}
-          </PreviewSelectableBlock>
-        ))}
+            selectedBlockIndex={selectedPageBlockIndex}
+            onSelectBlockIndex={onSelectPageBlockIndex}
+          />
+        ) : (
+          sections.map((sec) => (
+            <PreviewSelectableBlock
+              key={sec.id}
+              blockId={sec.id}
+              label={sec.label}
+              isPreview={isPreview}
+              selectedBlock={selectedBlock}
+              onSelectBlock={onSelectBlock}
+              hidden={sec.visible === false}
+            >
+              {renderSection(sec)}
+            </PreviewSelectableBlock>
+          ))
+        )}
       </main>
 
       <PreviewSelectableBlock

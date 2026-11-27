@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { ArrowUpRight, Menu, X } from 'lucide-react';
 
-export default function Navbar({ personal, navbarConfig, isPreview = false }) {
+export default function Navbar({
+  personal,
+  navbarConfig,
+  pages = [],
+  isPreview = false,
+  onPreviewNavigate = null,
+}) {
   const [scrolled, setScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -21,13 +27,39 @@ export default function Navbar({ personal, navbarConfig, isPreview = false }) {
   const ctaLabel = navbarConfig?.ctaLabel || 'Collaborate';
   const ctaHref = navbarConfig?.ctaHref || '#contact';
 
-  const navItems = (navbarConfig?.links || [
+  const baseLinks = (navbarConfig?.links || [
     { id: 'about', label: 'Overview', href: '#about', visible: true },
     { id: 'arsenal', label: 'Arsenal', href: '#arsenal', visible: true },
     { id: 'projects', label: 'Work', href: '#projects', visible: true },
     { id: 'reel', label: 'Lens', href: '#reel', visible: true },
     { id: 'leadership', label: 'Ethos', href: '#leadership', visible: true },
   ]).filter((item) => item.visible !== false);
+
+  const pageNavLinks = pages
+    .filter((p) => p.published !== false && p.showInNav)
+    .map((p) => ({
+      id: `page-${p.slug}`,
+      label: p.navLabel || p.title || p.slug,
+      href: `#/page/${p.slug}`,
+      pageSlug: p.slug,
+    }));
+
+  const navItems = [...baseLinks, ...pageNavLinks];
+
+  const handleLinkClick = (e, item) => {
+    setMobileMenuOpen(false);
+    if (!isPreview || !onPreviewNavigate) return;
+    const href = item.href || '';
+    if (href.startsWith('#/page/')) {
+      e.preventDefault();
+      e.stopPropagation();
+      onPreviewNavigate(href.slice(7));
+    } else if (href === '#' || href.startsWith('#')) {
+      e.preventDefault();
+      e.stopPropagation();
+      onPreviewNavigate(null);
+    }
+  };
 
   return (
     <header
@@ -40,7 +72,11 @@ export default function Navbar({ personal, navbarConfig, isPreview = false }) {
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
         <div className="flex items-center justify-between">
           {/* Minimal Wordmark */}
-          <a href="#" className="group flex items-baseline gap-2.5">
+          <a
+            href="#"
+            onClick={(e) => handleLinkClick(e, { href: '#' })}
+            className="group flex items-baseline gap-2.5"
+          >
             <span className="font-bold text-base tracking-tight text-white">
               {brandName}
               <span className="text-accent">.</span>
@@ -62,6 +98,7 @@ export default function Navbar({ personal, navbarConfig, isPreview = false }) {
                   href={item.href || '#'}
                   target={isExternal ? '_blank' : undefined}
                   rel={isExternal ? 'noreferrer' : undefined}
+                  onClick={(e) => handleLinkClick(e, item)}
                   className="text-xs font-medium text-zinc-400 hover:text-white transition-colors"
                 >
                   {item.label}
@@ -77,6 +114,7 @@ export default function Navbar({ personal, navbarConfig, isPreview = false }) {
                 href={ctaHref}
                 target={/^https?:\/\//i.test(ctaHref) ? '_blank' : undefined}
                 rel={/^https?:\/\//i.test(ctaHref) ? 'noreferrer' : undefined}
+                onClick={(e) => handleLinkClick(e, { href: ctaHref })}
                 className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-medium text-white bg-accent hover:bg-accent-hover transition-colors"
               >
                 <span>{ctaLabel}</span>
@@ -102,7 +140,7 @@ export default function Navbar({ personal, navbarConfig, isPreview = false }) {
               <a
                 key={item.id || item.href}
                 href={item.href || '#'}
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={(e) => handleLinkClick(e, item)}
                 className="px-3 py-2 text-sm text-zinc-300 hover:text-white hover:bg-white/[0.04] rounded-lg transition-colors"
               >
                 {item.label}
@@ -111,7 +149,7 @@ export default function Navbar({ personal, navbarConfig, isPreview = false }) {
             {showCta && (
               <a
                 href={ctaHref}
-                onClick={() => setMobileMenuOpen(false)}
+                onClick={(e) => handleLinkClick(e, { href: ctaHref })}
                 className="mt-2 inline-flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs font-medium text-white bg-accent hover:bg-accent-hover transition-colors"
               >
                 <span>{ctaLabel}</span>
