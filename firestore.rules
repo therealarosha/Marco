@@ -1,0 +1,20 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /portfolio/{document=**} {
+      // Anyone visiting the portfolio can read public site content
+      allow read: if true;
+
+      // Only the verified owner Google account can create/update/delete content
+      allow write: if request.auth != null
+                   && request.auth.token.email == "arodisspj2006@gmail.com"
+                   && request.auth.token.email_verified == true;
+    }
+
+    // Deny access to any other collections
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
