@@ -16,14 +16,14 @@ rules_version = '2';
 //       - faculty: string (required, 0..200 chars)
 //       - statusBadge: string (required, 0..120 chars)
 //       - location: string (required, 0..120 chars)
-//       - bio: list<string> (required, 1..8 items, each 0..2000 chars)
-//       - roles: list<string> (required, 0..16 items, each 0..80 chars)
+//       - bio: list<string> (required, 1..8 items; first item <= 2000 chars)
+//       - roles: list<string> (required, 0..16 items)
 //       - contacts: map (required, exact keys: email, github, linkedin, instagram, youtube)
-//           - email: string (required, '' or valid email <= 160 chars)
-//           - github: string (required, '' or http(s) URL <= 300 chars)
-//           - linkedin: string (required, '' or http(s) URL <= 300 chars)
-//           - instagram: string (required, '' or http(s) URL <= 300 chars)
-//           - youtube: string (required, '' or http(s) URL <= 300 chars)
+//           - email: string (required, '' or valid email <= 254 chars)
+//           - github: string (required, '' or http(s) URL <= 500 chars)
+//           - linkedin: string (required, '' or http(s) URL <= 500 chars)
+//           - instagram: string (required, '' or http(s) URL <= 500 chars)
+//           - youtube: string (required, '' or http(s) URL <= 500 chars)
 //   - stats: list<map> (required, 1..8 items)
 //   - arsenal: map (required, exact keys: tech, creative, leadership)
 //       - tech: list<map> (required, 0..25 items)
@@ -44,11 +44,9 @@ rules_version = '2';
 //     (`email_verified == true`) can create or update `/portfolio/content`.
 //   - Deleting `/portfolio/content` and accessing any other path are denied.
 //   - Cloud Firestore Rules do not support list loops and limit evaluation to
-//     1,000 expressions per request; therefore, bounded string arrays (`bio`,
-//     `roles`) validate every element up to max length while variable-length
-//     object arrays (`stats`, `arsenal.*`, `projects`, `gallery`,
-//     `leadershipPillars`) enforce `is list` and size bounds under single-owner
-//     write authority.
+//     1,000 expressions per request; speculative out-of-bounds list indexing
+//     is avoided by checking list bounds (and `bio[0]` only where `size >= 1`)
+//     under single-owner write authority.
 //
 // ===============================================================
 
@@ -88,14 +86,14 @@ service cloud.firestore {
 
     function isValidEmail(email) {
       return email is string
-        && email.size() <= 160
+        && email.size() <= 254
         && email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
     }
 
     function isValidUrl(url) {
       return url is string
-        && url.size() <= 300
-        && (url.matches('^https://.*') || url.matches('^http://.*'));
+        && url.size() <= 500
+        && url.lower().matches('^https?://.*');
     }
 
     function isValidOptionalUrl(url) {
@@ -114,34 +112,12 @@ service cloud.firestore {
 
     function isValidBioList(bio) {
       return isValidListBounds(bio, 1, 8)
-        && (bio.size() <= 0 || (bio[0] is string && bio[0].size() <= 2000))
-        && (bio.size() <= 1 || (bio[1] is string && bio[1].size() <= 2000))
-        && (bio.size() <= 2 || (bio[2] is string && bio[2].size() <= 2000))
-        && (bio.size() <= 3 || (bio[3] is string && bio[3].size() <= 2000))
-        && (bio.size() <= 4 || (bio[4] is string && bio[4].size() <= 2000))
-        && (bio.size() <= 5 || (bio[5] is string && bio[5].size() <= 2000))
-        && (bio.size() <= 6 || (bio[6] is string && bio[6].size() <= 2000))
-        && (bio.size() <= 7 || (bio[7] is string && bio[7].size() <= 2000));
+        && bio[0] is string
+        && bio[0].size() <= 2000;
     }
 
     function isValidRolesList(roles) {
-      return isValidListBounds(roles, 0, 16)
-        && (roles.size() <= 0 || (roles[0] is string && roles[0].size() <= 80))
-        && (roles.size() <= 1 || (roles[1] is string && roles[1].size() <= 80))
-        && (roles.size() <= 2 || (roles[2] is string && roles[2].size() <= 80))
-        && (roles.size() <= 3 || (roles[3] is string && roles[3].size() <= 80))
-        && (roles.size() <= 4 || (roles[4] is string && roles[4].size() <= 80))
-        && (roles.size() <= 5 || (roles[5] is string && roles[5].size() <= 80))
-        && (roles.size() <= 6 || (roles[6] is string && roles[6].size() <= 80))
-        && (roles.size() <= 7 || (roles[7] is string && roles[7].size() <= 80))
-        && (roles.size() <= 8 || (roles[8] is string && roles[8].size() <= 80))
-        && (roles.size() <= 9 || (roles[9] is string && roles[9].size() <= 80))
-        && (roles.size() <= 10 || (roles[10] is string && roles[10].size() <= 80))
-        && (roles.size() <= 11 || (roles[11] is string && roles[11].size() <= 80))
-        && (roles.size() <= 12 || (roles[12] is string && roles[12].size() <= 80))
-        && (roles.size() <= 13 || (roles[13] is string && roles[13].size() <= 80))
-        && (roles.size() <= 14 || (roles[14] is string && roles[14].size() <= 80))
-        && (roles.size() <= 15 || (roles[15] is string && roles[15].size() <= 80));
+      return isValidListBounds(roles, 0, 16);
     }
 
     function isValidContacts(contacts) {

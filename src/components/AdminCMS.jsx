@@ -142,14 +142,19 @@ export default function AdminCMS({ onExit }) {
     setSaving(true);
     setStatusMsg(null);
     try {
-      await savePortfolioContent(draft);
+      const saved = await savePortfolioContent(draft);
+      setDraft(saved);
       setDirty(false);
       setDbExists(true);
       setStatusMsg({ type: 'success', text: 'Saved to Firebase Firestore.' });
     } catch (err) {
+      const msg =
+        err?.code === 'permission-denied'
+          ? 'Missing or insufficient permissions: ensure Firestore rules are deployed (`npx -y firebase-tools@latest deploy --only firestore:rules`) and you are signed in with the verified owner Google account.'
+          : err.message || 'Save failed. Check Firestore rules and connection.';
       setStatusMsg({
         type: 'error',
-        text: err.message || 'Save failed. Check Firestore rules and connection.',
+        text: msg,
       });
     } finally {
       setSaving(false);
