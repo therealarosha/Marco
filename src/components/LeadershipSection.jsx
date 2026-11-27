@@ -1,7 +1,10 @@
 import React from 'react';
 import { ArrowUpRight } from 'lucide-react';
+import RichText from './RichText';
 
-export default function LeadershipSection({ leadershipPillars }) {
+export default function LeadershipSection({ leadershipPillars, sectionMeta, theme }) {
+  const cardRadius = theme?.cardRadius || 'rounded-xl';
+
   return (
     <section id="leadership" className="py-20">
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
@@ -9,13 +12,13 @@ export default function LeadershipSection({ leadershipPillars }) {
         {/* Header */}
         <div className="max-w-2xl mb-14">
           <span className="text-[11px] font-mono text-zinc-500 uppercase tracking-widest block mb-2">
-            05 / Ethos
+            {sectionMeta?.eyebrow || '05 / Ethos'}
           </span>
           <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-            Leader at Core<span className="text-accent">.</span>
+            <RichText text={sectionMeta?.title || 'Leader at Core==.=='} />
           </h2>
           <p className="mt-3 text-sm text-zinc-400 leading-relaxed">
-            Leadership is removing friction, setting a high aesthetic bar, and uniting people around meaningful work.
+            <RichText text={sectionMeta?.subtitle || 'Leadership is removing friction, setting a high aesthetic bar, and uniting people around meaningful work.'} />
           </p>
         </div>
 
@@ -40,7 +43,7 @@ export default function LeadershipSection({ leadershipPillars }) {
         </div>
 
         {/* Minimal Community Row */}
-        <div className="mt-14 minimal-card rounded-xl p-6 sm:p-7 flex flex-col sm:flex-row sm:items-center justify-between gap-6">
+        <div className={`mt-14 minimal-card ${cardRadius} p-6 sm:p-7 flex flex-col sm:flex-row sm:items-center justify-between gap-6`}>
           <div>
             <span className="text-[10px] font-mono text-zinc-500 uppercase tracking-widest block mb-1">
               WUSL Community

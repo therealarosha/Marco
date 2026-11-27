@@ -1,11 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
-import Navbar from './components/Navbar';
-import HeroBento from './components/HeroBento';
-import CreativeArsenal from './components/CreativeArsenal';
-import ProjectShowcase from './components/ProjectShowcase';
-import FilmStripGallery from './components/FilmStripGallery';
-import LeadershipSection from './components/LeadershipSection';
-import FooterAndContact from './components/FooterAndContact';
+import PortfolioView from './components/PortfolioView';
 import { portfolioData as defaultData } from './data/portfolioData';
 import { subscribePortfolioContent } from './lib/portfolioService';
 
@@ -57,34 +51,5 @@ export default function App() {
     );
   }
 
-  return (
-    <div className="min-h-screen bg-[#09090b] text-zinc-100 relative selection:bg-[#FF4D00]/25 selection:text-white">
-      <Navbar personal={content.personal} />
-
-      <main className="relative z-10">
-        <HeroBento
-          personal={content.personal}
-          stats={content.stats}
-        />
-
-        <CreativeArsenal
-          arsenal={content.arsenal}
-        />
-
-        <ProjectShowcase
-          projects={content.projects}
-        />
-
-        <FilmStripGallery
-          gallery={content.gallery}
-        />
-
-        <LeadershipSection
-          leadershipPillars={content.leadershipPillars}
-        />
-      </main>
-
-      <FooterAndContact personal={content.personal} />
-    </div>
-  );
+  return <PortfolioView content={content} />;
 }

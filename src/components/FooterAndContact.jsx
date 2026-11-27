@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { Mail, Copy, Check, ArrowUp } from 'lucide-react';
 import { GithubIcon, LinkedinIcon, InstagramIcon, YoutubeIcon } from './SocialIcons';
+import RichText from './RichText';
+import ActionButton from './ActionButton';
 
 const CURRENT_YEAR = new Date().getFullYear();
 
-export default function FooterAndContact({ personal }) {
+export default function FooterAndContact({ personal, footerConfig, isPreview = false }) {
   const [copied, setCopied] = useState(false);
 
   const copyEmail = () => {
+    if (!personal.contacts?.email) return;
     navigator.clipboard.writeText(personal.contacts.email);
     setCopied(true);
     setTimeout(() => setCopied(false), 2200);
@@ -17,50 +20,78 @@ export default function FooterAndContact({ personal }) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const buttons = (footerConfig?.buttons || [
+    { id: 'btn-email', label: 'Send Email', action: 'mailto', href: '', variant: 'accent', icon: 'mail', visible: true },
+    { id: 'btn-copy', label: '', action: 'copy', href: '', variant: 'outline', icon: 'none', visible: true },
+  ]).filter((b) => b.visible !== false);
+
   return (
-    <footer id="contact" className="pt-20 pb-12 border-t border-white/[0.08] bg-[#09090b]">
+    <footer id="contact" className="pt-20 pb-12 border-t border-white/[0.08] bg-[#09090b]/90 relative z-10">
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
 
         {/* Minimalist Contact Block */}
         <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10 pb-16 border-b border-white/[0.08]">
           <div className="max-w-xl">
             <span className="text-[11px] font-mono text-zinc-500 uppercase tracking-widest block mb-3">
-              06 / Contact
+              {footerConfig?.eyebrow || '06 / Contact'}
             </span>
             <h2 className="text-3xl sm:text-4xl font-bold text-white tracking-tight leading-tight">
-              Have a project, film, or problem worth solving<span className="text-accent">?</span>
+              <RichText text={footerConfig?.heading || 'Have a project, film, or problem worth solving==?=='} />
             </h2>
             <p className="mt-3 text-sm text-zinc-400 leading-relaxed">
-              Open for software builds, video direction, motion design, and student collaborations.
+              <RichText text={footerConfig?.subheading || 'Open for software builds, video direction, motion design, and student collaborations.'} />
             </p>
           </div>
 
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            <a
-              href={`mailto:${personal.contacts.email}`}
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-xs font-medium text-white bg-accent hover:bg-accent-hover transition-colors"
-            >
-              <Mail className="w-3.5 h-3.5" />
-              <span>Send Email</span>
-            </a>
+          <div className="flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-3">
+            {buttons.map((btn) => {
+              if (btn.action === 'copy') {
+                return (
+                  <button
+                    key={btn.id || 'copy'}
+                    type="button"
+                    onClick={copyEmail}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium text-zinc-300 hover:text-white bg-[#101012] border border-white/[0.1] hover:border-white/[0.2] transition-colors"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-accent" />
+                        <span className="font-mono text-white">Copied</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5 text-zinc-400" />
+                        <span>{btn.label?.trim() || personal.contacts.email}</span>
+                      </>
+                    )}
+                  </button>
+                );
+              }
 
-            <button
-              type="button"
-              onClick={copyEmail}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-xs font-medium text-zinc-300 hover:text-white bg-[#101012] border border-white/[0.1] hover:border-white/[0.2] transition-colors"
-            >
-              {copied ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-accent" />
-                  <span className="font-mono text-white">Copied</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5 text-zinc-400" />
-                  <span>{personal.contacts.email}</span>
-                </>
-              )}
-            </button>
+              if (btn.action === 'mailto') {
+                const resolvedBtn = {
+                  ...btn,
+                  href: `mailto:${personal.contacts.email}`,
+                  icon: btn.icon || 'mail',
+                };
+                return (
+                  <a
+                    key={btn.id || 'mailto'}
+                    href={resolvedBtn.href}
+                    className={`inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg text-xs font-medium transition-colors ${
+                      btn.variant === 'outline'
+                        ? 'text-zinc-200 hover:text-white bg-[#101012] border border-white/[0.12] hover:border-white/[0.25]'
+                        : 'text-white bg-accent hover:bg-accent-hover'
+                    }`}
+                  >
+                    <Mail className="w-3.5 h-3.5" />
+                    <span>{btn.label || 'Send Email'}</span>
+                  </a>
+                );
+              }
+
+              return <ActionButton key={btn.id || btn.label} button={btn} />;
+            })}
           </div>
         </div>
 
@@ -70,10 +101,14 @@ export default function FooterAndContact({ personal }) {
             <span>&copy; {CURRENT_YEAR} {personal.displayName || personal.name}</span>
             <span className="text-zinc-700">/</span>
             <span>WUSL Applied Sciences</span>
-            <span className="text-zinc-700">/</span>
-            <a href="#/admin" className="text-zinc-500 hover:text-accent transition-colors">
-              CMS
-            </a>
+            {!isPreview && (
+              <>
+                <span className="text-zinc-700">/</span>
+                <a href="#/admin" className="text-zinc-500 hover:text-accent transition-colors">
+                  CMS
+                </a>
+              </>
+            )}
           </div>
 
           <div className="flex items-center gap-3">

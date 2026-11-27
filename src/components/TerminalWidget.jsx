@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { CornerDownLeft } from 'lucide-react';
 
-export default function TerminalWidget({ personal }) {
+export default function TerminalWidget({ personal, radiusClass = 'rounded-xl' }) {
   const [history, setHistory] = useState([
     { type: 'system', text: 'VibeOS v2.4 — interactive profile shell.' },
     { type: 'system', text: "Run 'help' or select a command below." }
@@ -51,7 +51,7 @@ export default function TerminalWidget({ personal }) {
   }, [history]);
 
   return (
-    <div className="h-full flex flex-col bg-[#0c0c0e] rounded-xl border border-white/[0.08] overflow-hidden font-mono text-xs">
+    <div className={`h-full flex flex-col bg-[#0c0c0e] ${radiusClass} border border-white/[0.08] overflow-hidden font-mono text-xs`}>
       {/* Terminal Header */}
       <div className="flex items-center justify-between px-3.5 py-2.5 border-b border-white/[0.06]">
         <div className="flex items-center gap-2">

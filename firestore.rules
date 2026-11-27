@@ -6,7 +6,7 @@ rules_version = '2';
 //
 // Collection: portfolio
 // Document ID: content (singleton public portfolio CMS document)
-// Fields (all 7 top-level keys required on create & update, strict hasOnly):
+// Fields (all 8 top-level keys required on create & update, strict hasOnly):
 //   - personal: map (required, exact 11 keys)
 //       - name: string (required, 1..120 chars)
 //       - displayName: string (required, 1..120 chars)
@@ -32,6 +32,18 @@ rules_version = '2';
 //   - projects: list<map> (required, 0..40 items)
 //   - gallery: list<map> (required, 0..40 items)
 //   - leadershipPillars: list<map> (required, 1..8 items)
+//   - siteConfig: map (required, exact keys: theme, lottie, sections, navbar, hero, footer)
+//       - theme: map (accentColor hex, cardRadius <= 30 chars, showDotGrid bool)
+//       - lottie: map (enabled bool, sourceType in ['preset','url','json'], preset <= 50 chars,
+//                      url '' or http(s), customJson <= 300000 chars, scope in ['global','hero'],
+//                      opacity 0..1, speed 0.1..5, blur 0..20, loop bool, monochrome bool)
+//       - sections: list<map> (required, 1..12 items)
+//       - navbar: map (brandText <= 120, showUniversityTag bool, universityTag <= 60,
+//                      showCta bool, ctaLabel <= 80, ctaHref <= 300, links list 0..12)
+//       - hero: map (headline <= 400, subheadline <= 800, bentoOrder list 1..6,
+//                    profileLabel/academiaLabel/craftLabel <= 80, craftTitle <= 160,
+//                    craftDesc <= 500, craftTools list 0..20, buttons list 0..10)
+//       - footer: map (eyebrow <= 80, heading <= 300, subheading <= 600, buttons list 0..10)
 //   - updatedAt: timestamp (required, must equal request.time via serverTimestamp())
 //
 // Security & Design Notes:
@@ -173,6 +185,121 @@ service cloud.firestore {
         && isValidListBounds(arsenal.leadership, 0, 25);
     }
 
+    function isValidSiteTheme(theme) {
+      let keys = ['accentColor', 'cardRadius', 'showDotGrid'];
+      return theme is map
+        && hasOnlyAllowedFields(theme, keys)
+        && hasRequiredFields(theme, keys)
+        && theme.accentColor is string
+        && theme.accentColor.matches('^#[0-9a-fA-F]{6}$')
+        && isBoundedString(theme.cardRadius, 0, 30)
+        && theme.showDotGrid is bool;
+    }
+
+    function isValidSiteLottie(lottie) {
+      let keys = [
+        'enabled',
+        'sourceType',
+        'preset',
+        'url',
+        'customJson',
+        'scope',
+        'opacity',
+        'speed',
+        'blur',
+        'loop',
+        'monochrome'
+      ];
+      return lottie is map
+        && hasOnlyAllowedFields(lottie, keys)
+        && hasRequiredFields(lottie, keys)
+        && lottie.enabled is bool
+        && lottie.sourceType in ['preset', 'url', 'json']
+        && isBoundedString(lottie.preset, 0, 50)
+        && isValidOptionalUrl(lottie.url)
+        && isBoundedString(lottie.customJson, 0, 300000)
+        && lottie.scope in ['global', 'hero']
+        && lottie.opacity is number && lottie.opacity >= 0 && lottie.opacity <= 1
+        && lottie.speed is number && lottie.speed >= 0.1 && lottie.speed <= 5
+        && lottie.blur is number && lottie.blur >= 0 && lottie.blur <= 20
+        && lottie.loop is bool
+        && lottie.monochrome is bool;
+    }
+
+    function isValidSiteNavbar(navbar) {
+      let keys = [
+        'brandText',
+        'showUniversityTag',
+        'universityTag',
+        'showCta',
+        'ctaLabel',
+        'ctaHref',
+        'links'
+      ];
+      return navbar is map
+        && hasOnlyAllowedFields(navbar, keys)
+        && hasRequiredFields(navbar, keys)
+        && isBoundedString(navbar.brandText, 0, 120)
+        && navbar.showUniversityTag is bool
+        && isBoundedString(navbar.universityTag, 0, 60)
+        && navbar.showCta is bool
+        && isBoundedString(navbar.ctaLabel, 0, 80)
+        && isBoundedString(navbar.ctaHref, 0, 300)
+        && isValidListBounds(navbar.links, 0, 12);
+    }
+
+    function isValidSiteHero(hero) {
+      let keys = [
+        'headline',
+        'subheadline',
+        'bentoOrder',
+        'profileLabel',
+        'academiaLabel',
+        'craftLabel',
+        'craftTitle',
+        'craftDesc',
+        'craftTools',
+        'buttons'
+      ];
+      return hero is map
+        && hasOnlyAllowedFields(hero, keys)
+        && hasRequiredFields(hero, keys)
+        && isBoundedString(hero.headline, 0, 400)
+        && isBoundedString(hero.subheadline, 0, 800)
+        && isValidListBounds(hero.bentoOrder, 1, 6)
+        && isBoundedString(hero.profileLabel, 0, 80)
+        && isBoundedString(hero.academiaLabel, 0, 80)
+        && isBoundedString(hero.craftLabel, 0, 80)
+        && isBoundedString(hero.craftTitle, 0, 160)
+        && isBoundedString(hero.craftDesc, 0, 500)
+        && isValidListBounds(hero.craftTools, 0, 20)
+        && isValidListBounds(hero.buttons, 0, 10);
+    }
+
+    function isValidSiteFooter(footer) {
+      let keys = ['eyebrow', 'heading', 'subheading', 'buttons'];
+      return footer is map
+        && hasOnlyAllowedFields(footer, keys)
+        && hasRequiredFields(footer, keys)
+        && isBoundedString(footer.eyebrow, 0, 80)
+        && isBoundedString(footer.heading, 0, 300)
+        && isBoundedString(footer.subheading, 0, 600)
+        && isValidListBounds(footer.buttons, 0, 10);
+    }
+
+    function isValidSiteConfig(siteConfig) {
+      let keys = ['theme', 'lottie', 'sections', 'navbar', 'hero', 'footer'];
+      return siteConfig is map
+        && hasOnlyAllowedFields(siteConfig, keys)
+        && hasRequiredFields(siteConfig, keys)
+        && isValidSiteTheme(siteConfig.theme)
+        && isValidSiteLottie(siteConfig.lottie)
+        && isValidListBounds(siteConfig.sections, 1, 12)
+        && isValidSiteNavbar(siteConfig.navbar)
+        && isValidSiteHero(siteConfig.hero)
+        && isValidSiteFooter(siteConfig.footer);
+    }
+
     function isValidPortfolioContent(data) {
       let topLevelKeys = [
         'personal',
@@ -181,6 +308,7 @@ service cloud.firestore {
         'projects',
         'gallery',
         'leadershipPillars',
+        'siteConfig',
         'updatedAt'
       ];
       return data is map
@@ -192,6 +320,7 @@ service cloud.firestore {
         && isValidListBounds(data.projects, 0, 40)
         && isValidListBounds(data.gallery, 0, 40)
         && isValidListBounds(data.leadershipPillars, 1, 8)
+        && isValidSiteConfig(data.siteConfig)
         && data.updatedAt is timestamp
         && data.updatedAt == request.time;
     }

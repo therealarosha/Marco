@@ -1,9 +1,57 @@
 import { doc, getDoc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebase';
 import { portfolioData as defaultData } from '../data/portfolioData';
+import { normalizeHex } from './themeUtils';
 
 const COLLECTION_NAME = 'portfolio';
 const DOC_ID = 'content';
+
+function mergeSiteConfig(remoteConfig) {
+  const base = defaultData.siteConfig;
+  if (!remoteConfig || typeof remoteConfig !== 'object') {
+    return structuredClone(base);
+  }
+  return {
+    theme: {
+      ...base.theme,
+      ...(remoteConfig.theme || {}),
+    },
+    lottie: {
+      ...base.lottie,
+      ...(remoteConfig.lottie || {}),
+    },
+    sections: Array.isArray(remoteConfig.sections)
+      ? remoteConfig.sections
+      : structuredClone(base.sections),
+    navbar: {
+      ...base.navbar,
+      ...(remoteConfig.navbar || {}),
+      links: Array.isArray(remoteConfig.navbar?.links)
+        ? remoteConfig.navbar.links
+        : structuredClone(base.navbar.links),
+    },
+    hero: {
+      ...base.hero,
+      ...(remoteConfig.hero || {}),
+      bentoOrder: Array.isArray(remoteConfig.hero?.bentoOrder)
+        ? remoteConfig.hero.bentoOrder
+        : [...base.hero.bentoOrder],
+      craftTools: Array.isArray(remoteConfig.hero?.craftTools)
+        ? remoteConfig.hero.craftTools
+        : [...base.hero.craftTools],
+      buttons: Array.isArray(remoteConfig.hero?.buttons)
+        ? remoteConfig.hero.buttons
+        : structuredClone(base.hero.buttons),
+    },
+    footer: {
+      ...base.footer,
+      ...(remoteConfig.footer || {}),
+      buttons: Array.isArray(remoteConfig.footer?.buttons)
+        ? remoteConfig.footer.buttons
+        : structuredClone(base.footer.buttons),
+    },
+  };
+}
 
 function mergeWithDefaults(remote) {
   if (!remote || typeof remote !== 'object') {
@@ -39,6 +87,7 @@ function mergeWithDefaults(remote) {
     leadershipPillars: Array.isArray(remote.leadershipPillars)
       ? remote.leadershipPillars
       : defaultData.leadershipPillars,
+    siteConfig: mergeSiteConfig(remote.siteConfig),
   };
 }
 
@@ -163,6 +212,22 @@ export function sanitizeAndValidateContent(content) {
     throw new Error('Leadership Pillars must contain between 1 and 8 items.');
   }
 
+  const siteConfig = mergeSiteConfig(content.siteConfig);
+  siteConfig.theme.accentColor = normalizeHex(siteConfig.theme.accentColor);
+  siteConfig.lottie.url = normalizeOptionalUrl(siteConfig.lottie.url);
+
+  const lottieJson = String(siteConfig.lottie.customJson ?? '');
+  if (lottieJson.length > 300000) {
+    throw new Error('Inline Lottie JSON exceeds 300 KB limit. Host the .json file externally and use Lottie URL instead.');
+  }
+  if (siteConfig.lottie.enabled && siteConfig.lottie.sourceType === 'json' && lottieJson.trim()) {
+    try {
+      JSON.parse(lottieJson);
+    } catch {
+      throw new Error('Custom Lottie JSON is not valid JSON.');
+    }
+  }
+
   return {
     personal: {
       name,
@@ -192,6 +257,7 @@ export function sanitizeAndValidateContent(content) {
     projects: Array.isArray(content.projects) ? content.projects : [],
     gallery: Array.isArray(content.gallery) ? content.gallery : [],
     leadershipPillars,
+    siteConfig,
   };
 }
 

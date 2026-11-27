@@ -1,7 +1,7 @@
 export const portfolioData = {
   personal: {
     name: "Marco",
-    displayName: "Marco", // Replace with your full name
+    displayName: "Marco",
     headline: "Vibe Coder, Creative Technologist & Multidisciplinary Artist",
     subheadline: "Applied Science undergraduate at Wayamba University of Sri Lanka (WUSL). Building practical software solutions, cutting cinematic edits, and leading teams.",
     university: "Wayamba University of Sri Lanka (WUSL)",
@@ -176,5 +176,108 @@ export const portfolioData = {
       title: "Leadership at Core",
       desc: "Setting clear direction, backing teammates, and uniting creative and technical people around real goals."
     }
-  ]
+  ],
+
+  siteConfig: {
+    theme: {
+      accentColor: "#FF4D00",
+      cardRadius: "rounded-xl",
+      showDotGrid: true
+    },
+    lottie: {
+      enabled: true,
+      sourceType: "preset",
+      preset: "orbital",
+      url: "",
+      customJson: "",
+      scope: "global",
+      opacity: 0.2,
+      speed: 0.75,
+      blur: 0,
+      loop: true,
+      monochrome: false
+    },
+    sections: [
+      {
+        id: "hero",
+        label: "Hero & Bento",
+        visible: true,
+        eyebrow: "",
+        title: "",
+        subtitle: ""
+      },
+      {
+        id: "arsenal",
+        label: "Code & Cinema Arsenal",
+        visible: true,
+        eyebrow: "02 / Toolkit",
+        title: "Code & Cinema Arsenal==.==",
+        subtitle: "Software speed paired with visual restraint."
+      },
+      {
+        id: "projects",
+        label: "Creations & Productions",
+        visible: true,
+        eyebrow: "03 / Selected Work",
+        title: "Creations & Productions==.==",
+        subtitle: "Practical software solutions, documentaries, motion packages, and visual identities."
+      },
+      {
+        id: "reel",
+        label: "Visual Rhythm & Stills",
+        visible: true,
+        eyebrow: "04 / Lens & Motion",
+        title: "Visual Rhythm & Stills==.==",
+        subtitle: "Cinematography, natural campus light, motion tests, and live direction."
+      },
+      {
+        id: "leadership",
+        label: "Leader at Core",
+        visible: true,
+        eyebrow: "05 / Ethos",
+        title: "Leader at Core==.==",
+        subtitle: "Leadership is removing friction, setting a high aesthetic bar, and uniting people around meaningful work."
+      }
+    ],
+    navbar: {
+      brandText: "",
+      showUniversityTag: true,
+      universityTag: "/ WUSL",
+      showCta: true,
+      ctaLabel: "Collaborate",
+      ctaHref: "#contact",
+      links: [
+        { id: "about", label: "Overview", href: "#about", visible: true },
+        { id: "arsenal", label: "Arsenal", href: "#arsenal", visible: true },
+        { id: "projects", label: "Work", href: "#projects", visible: true },
+        { id: "reel", label: "Lens", href: "#reel", visible: true },
+        { id: "leadership", label: "Ethos", href: "#leadership", visible: true }
+      ]
+    },
+    hero: {
+      headline: "Engineering solutions through ==Vibe Coding==, shaped by cinematic craft.",
+      subheadline: "Applied Science undergraduate at **Wayamba University of Sri Lanka (WUSL)**. Building practical applications, directing film & motion graphics, and leading teams.",
+      bentoOrder: ["profile", "academia", "craft", "terminal"],
+      profileLabel: "01 / Profile",
+      academiaLabel: "02 / Academia",
+      craftLabel: "03 / Craft & Lead",
+      craftTitle: "Cinema, Motion & Core Leadership",
+      craftDesc: "Video editing, photography, 2D motion graphics, and leading teams from concept to ship.",
+      craftTools: ["Premiere Pro", "After Effects", "DaVinci", "Sony Alpha", "Illustrator"],
+      buttons: [
+        { id: "btn-work", label: "Selected Work", href: "#projects", variant: "accent", icon: "arrow", visible: true },
+        { id: "btn-reel", label: "Visual Reel", href: "#reel", variant: "ghost", icon: "none", visible: true },
+        { id: "btn-toolkit", label: "Toolkit", href: "#arsenal", variant: "ghost", icon: "none", visible: true }
+      ]
+    },
+    footer: {
+      eyebrow: "06 / Contact",
+      heading: "Have a project, film, or problem worth solving==?==",
+      subheading: "Open for software builds, video direction, motion design, and student collaborations.",
+      buttons: [
+        { id: "btn-email", label: "Send Email", action: "mailto", href: "", variant: "accent", visible: true },
+        { id: "btn-copy", label: "", action: "copy", href: "", variant: "outline", visible: true }
+      ]
+    }
+  }
 };

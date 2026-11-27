@@ -11,8 +11,8 @@ export default {
         canvas: '#09090b',
         surface: '#111113',
         accent: {
-          DEFAULT: '#FF4D00',
-          hover: '#FF6624',
+          DEFAULT: 'rgb(var(--accent-rgb) / <alpha-value>)',
+          hover: 'rgb(var(--accent-hover-rgb) / <alpha-value>)',
         },
       },
       fontFamily: {

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
+import RichText from './RichText';
 
-export default function CreativeArsenal({ arsenal }) {
+export default function CreativeArsenal({ arsenal, sectionMeta, theme }) {
   const [activeTab, setActiveTab] = useState('tech');
 
   const tabs = [
@@ -10,6 +11,7 @@ export default function CreativeArsenal({ arsenal }) {
   ];
 
   const activeItems = arsenal[activeTab] || [];
+  const cardRadius = theme?.cardRadius || 'rounded-xl';
 
   return (
     <section id="arsenal" className="py-20">
@@ -19,13 +21,13 @@ export default function CreativeArsenal({ arsenal }) {
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
           <div>
             <span className="text-[11px] font-mono text-zinc-500 uppercase tracking-widest block mb-2">
-              02 / Toolkit
+              {sectionMeta?.eyebrow || '02 / Toolkit'}
             </span>
             <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-              Code & Cinema Arsenal<span className="text-accent">.</span>
+              <RichText text={sectionMeta?.title || 'Code & Cinema Arsenal==.=='} />
             </h2>
             <p className="mt-2 text-sm text-zinc-400 max-w-xl">
-              Software speed paired with visual restraint.
+              <RichText text={sectionMeta?.subtitle || 'Software speed paired with visual restraint.'} />
             </p>
           </div>
 
@@ -57,12 +59,12 @@ export default function CreativeArsenal({ arsenal }) {
           {activeItems.map((item, idx) => (
             <div
               key={`${activeTab}-${idx}`}
-              className="minimal-card rounded-xl p-6 flex flex-col justify-between"
+              className={`minimal-card ${cardRadius} p-6 flex flex-col justify-between`}
             >
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-[10px] font-mono text-zinc-500">
-                    0{idx + 1}
+                    {String(idx + 1).padStart(2, '0')}
                   </span>
                   <span className="text-[10px] font-mono uppercase tracking-wider text-zinc-400 px-2 py-0.5 rounded bg-white/[0.03] border border-white/[0.06]">
                     {item.level}

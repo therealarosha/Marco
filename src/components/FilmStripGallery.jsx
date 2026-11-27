@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Aperture } from 'lucide-react';
+import RichText from './RichText';
 
-export default function FilmStripGallery({ gallery = [] }) {
+export default function FilmStripGallery({ gallery = [], sectionMeta, theme }) {
   const [activeFrame, setActiveFrame] = useState(0);
 
   if (!gallery.length) {
@@ -10,6 +11,8 @@ export default function FilmStripGallery({ gallery = [] }) {
 
   const safeIndex = activeFrame < gallery.length ? activeFrame : 0;
   const currentFrame = gallery[safeIndex];
+  const cardRadius = theme?.cardRadius || 'rounded-xl';
+  const showDotGrid = theme?.showDotGrid !== false;
 
   return (
     <section id="reel" className="py-20">
@@ -19,13 +22,13 @@ export default function FilmStripGallery({ gallery = [] }) {
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-4">
           <div>
             <span className="text-[11px] font-mono text-zinc-500 uppercase tracking-widest block mb-2">
-              04 / Lens & Motion
+              {sectionMeta?.eyebrow || '04 / Lens & Motion'}
             </span>
             <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-              Visual Rhythm & Stills<span className="text-accent">.</span>
+              <RichText text={sectionMeta?.title || 'Visual Rhythm & Stills==.=='} />
             </h2>
             <p className="mt-2 text-sm text-zinc-400 max-w-xl">
-              Cinematography, natural campus light, motion tests, and live direction.
+              <RichText text={sectionMeta?.subtitle || 'Cinematography, natural campus light, motion tests, and live direction.'} />
             </p>
           </div>
 
@@ -39,7 +42,7 @@ export default function FilmStripGallery({ gallery = [] }) {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
 
           {/* Main Monochrome Viewfinder (8 cols) */}
-          <div className="lg:col-span-8 minimal-card rounded-xl p-3 sm:p-4 flex flex-col">
+          <div className={`lg:col-span-8 minimal-card ${cardRadius} p-3 sm:p-4 flex flex-col`}>
             <div className="relative aspect-video rounded-lg bg-[#09090b] border border-white/[0.06] flex flex-col justify-between p-4 sm:p-6 overflow-hidden">
 
               {/* Optional Still Image Backdrop */}
@@ -53,7 +56,7 @@ export default function FilmStripGallery({ gallery = [] }) {
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/60" />
                 </>
               ) : (
-                <div className="absolute inset-0 bg-subtle-dots opacity-40" />
+                showDotGrid && <div className="absolute inset-0 bg-subtle-dots opacity-40" />
               )}
 
               {/* Minimal Corner Viewfinder Marks */}
@@ -113,7 +116,7 @@ export default function FilmStripGallery({ gallery = [] }) {
                   key={idx}
                   type="button"
                   onClick={() => setActiveFrame(idx)}
-                  className={`text-left p-4 rounded-xl border transition-colors ${
+                  className={`text-left p-4 ${cardRadius} border transition-colors ${
                     isActive
                       ? 'bg-[#141417] border-white/[0.15] border-l-2 border-l-accent'
                       : 'bg-[#101012] border-white/[0.06] hover:border-white/[0.14]'
@@ -124,7 +127,7 @@ export default function FilmStripGallery({ gallery = [] }) {
                       {item.title}
                     </span>
                     <span className="text-[10px] font-mono text-zinc-500">
-                      0{idx + 1}
+                      {String(idx + 1).padStart(2, '0')}
                     </span>
                   </div>
                   <div className="text-[11px] font-mono text-zinc-500 mt-1.5 truncate">

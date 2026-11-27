@@ -1,17 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowUpRight } from 'lucide-react';
 import TerminalWidget from './TerminalWidget';
+import RichText from './RichText';
+import ActionButton from './ActionButton';
+import LottieBackground from './LottieBackground';
 
-export default function HeroBento({ personal, stats }) {
+export default function HeroBento({
+  personal,
+  stats,
+  heroConfig,
+  lottieConfig,
+  theme
+}) {
   const [activeRoleIndex, setActiveRoleIndex] = useState(0);
   const [localTime, setLocalTime] = useState('');
 
+  const roles = personal.roles?.length ? personal.roles : ['Developer'];
+
   useEffect(() => {
     const interval = setInterval(() => {
-      setActiveRoleIndex((prev) => (prev + 1) % personal.roles.length);
+      setActiveRoleIndex((prev) => (prev + 1) % roles.length);
     }, 2800);
     return () => clearInterval(interval);
-  }, [personal.roles.length]);
+  }, [roles.length]);
 
   useEffect(() => {
     const updateTime = () => {
@@ -32,41 +42,42 @@ export default function HeroBento({ personal, stats }) {
     return () => clearInterval(timer);
   }, []);
 
-  return (
-    <section id="about" className="pt-32 pb-20">
-      <div className="max-w-6xl mx-auto px-5 sm:px-8">
+  const cardRadius = theme?.cardRadius || 'rounded-xl';
+  const headline =
+    heroConfig?.headline ||
+    'Engineering solutions through ==Vibe Coding==, shaped by cinematic craft.';
+  const subheadline =
+    heroConfig?.subheadline ||
+    `Applied Science undergraduate at **${personal.university}**. Building practical applications, directing film & motion graphics, and leading teams.`;
 
-        {/* Minimalist Editorial Header */}
-        <div className="mb-12 max-w-3xl">
-          <div className="inline-flex items-center gap-2 text-xs font-mono text-zinc-400 mb-5">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent inline-block" />
-            <span>{personal.statusBadge}</span>
-            <span className="text-zinc-700">/</span>
-            <span>{personal.location}</span>
-          </div>
+  const heroButtons = (heroConfig?.buttons || [
+    { id: 'btn-work', label: 'Selected Work', href: '#projects', variant: 'accent', icon: 'arrow', visible: true },
+    { id: 'btn-reel', label: 'Visual Reel', href: '#reel', variant: 'ghost', icon: 'none', visible: true },
+    { id: 'btn-toolkit', label: 'Toolkit', href: '#arsenal', variant: 'ghost', icon: 'none', visible: true },
+  ]).filter((b) => b.visible !== false);
 
-          <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-white leading-[1.12]">
-            Engineering solutions through{' '}
-            <span className="text-accent">Vibe Coding</span>
-            , shaped by cinematic craft.
-          </h1>
+  const bentoOrder = heroConfig?.bentoOrder?.length
+    ? heroConfig.bentoOrder
+    : ['profile', 'academia', 'craft', 'terminal'];
 
-          <p className="mt-5 text-sm sm:text-base text-zinc-400 leading-relaxed max-w-2xl">
-            Applied Science undergraduate at{' '}
-            <span className="text-zinc-200 font-medium">{personal.university}</span>.
-            Building practical applications, directing film & motion graphics, and leading teams.
-          </p>
-        </div>
+  const craftTools = heroConfig?.craftTools?.length
+    ? heroConfig.craftTools
+    : ['Premiere Pro', 'After Effects', 'DaVinci', 'Sony Alpha', 'Illustrator'];
 
-        {/* Minimalist Monotone Bento Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+  const safeRoleIndex = activeRoleIndex % roles.length;
 
-          {/* Card 1: Main Identity (2 cols, 2 rows) */}
-          <div className="md:col-span-2 lg:col-span-2 md:row-span-2 minimal-card rounded-xl p-6 sm:p-8 flex flex-col justify-between">
+  const renderBentoCard = (key) => {
+    switch (key) {
+      case 'profile':
+        return (
+          <div
+            key="profile"
+            className={`md:col-span-2 lg:col-span-2 md:row-span-2 minimal-card ${cardRadius} p-6 sm:p-8 flex flex-col justify-between`}
+          >
             <div>
               <div className="flex items-center justify-between mb-6">
                 <span className="text-[11px] font-mono text-zinc-500 uppercase tracking-widest">
-                  01 / Profile
+                  {heroConfig?.profileLabel || '01 / Profile'}
                 </span>
                 <span className="text-[11px] font-mono text-zinc-500">
                   2026
@@ -78,58 +89,44 @@ export default function HeroBento({ personal, stats }) {
                 <span className="text-accent">.</span>
               </h2>
 
-              {/* Minimal Dynamic Role Line */}
               <div className="mt-2 mb-6 flex items-center gap-2 font-mono text-xs sm:text-sm">
                 <span className="text-accent">-&gt;</span>
-                <span
-                  key={activeRoleIndex}
-                  className="text-zinc-200 font-medium"
-                >
-                  {personal.roles[activeRoleIndex]}
+                <span key={safeRoleIndex} className="text-zinc-200 font-medium">
+                  {roles[safeRoleIndex]}
                 </span>
               </div>
 
               <div className="space-y-3.5 text-xs sm:text-sm text-zinc-400 leading-relaxed">
                 {personal.bio.map((para, i) => (
-                  <p key={i}>{para}</p>
+                  <p key={i}>
+                    <RichText text={para} />
+                  </p>
                 ))}
               </div>
             </div>
 
-            {/* Clean Action Links */}
-            <div className="mt-8 pt-5 border-t border-white/[0.06] flex flex-wrap items-center gap-4">
-              <a
-                href="#projects"
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-medium text-white bg-accent hover:bg-accent-hover transition-colors"
-              >
-                <span>Selected Work</span>
-                <ArrowUpRight className="w-3.5 h-3.5" />
-              </a>
-
-              <a
-                href="#reel"
-                className="text-xs font-medium text-zinc-400 hover:text-white transition-colors"
-              >
-                Visual Reel
-              </a>
-
-              <a
-                href="#arsenal"
-                className="text-xs font-medium text-zinc-400 hover:text-white transition-colors"
-              >
-                Toolkit
-              </a>
-            </div>
+            {heroButtons.length > 0 && (
+              <div className="mt-8 pt-5 border-t border-white/[0.06] flex flex-wrap items-center gap-4">
+                {heroButtons.map((btn) => (
+                  <ActionButton key={btn.id || btn.label} button={btn} />
+                ))}
+              </div>
+            )}
           </div>
+        );
 
-          {/* Card 2: Academia & Station (1 col) */}
-          <div className="minimal-card rounded-xl p-6 flex flex-col justify-between">
+      case 'academia':
+        return (
+          <div
+            key="academia"
+            className={`minimal-card ${cardRadius} p-6 flex flex-col justify-between`}
+          >
             <div>
               <span className="text-[11px] font-mono text-zinc-500 uppercase tracking-widest block mb-4">
-                02 / Academia
+                {heroConfig?.academiaLabel || '02 / Academia'}
               </span>
               <h3 className="text-base font-semibold text-white leading-snug">
-                Wayamba University of Sri Lanka
+                {personal.university}
               </h3>
               <p className="text-xs text-zinc-400 mt-1.5">
                 {personal.faculty}
@@ -147,25 +144,31 @@ export default function HeroBento({ personal, stats }) {
               </div>
             </div>
           </div>
+        );
 
-          {/* Card 3: Visual & Leadership Focus (1 col) */}
-          <div className="minimal-card rounded-xl p-6 flex flex-col justify-between">
+      case 'craft':
+        return (
+          <div
+            key="craft"
+            className={`minimal-card ${cardRadius} p-6 flex flex-col justify-between`}
+          >
             <div>
               <span className="text-[11px] font-mono text-zinc-500 uppercase tracking-widest block mb-4">
-                03 / Craft & Lead
+                {heroConfig?.craftLabel || '03 / Craft & Lead'}
               </span>
               <h3 className="text-base font-semibold text-white leading-snug">
-                Cinema, Motion & Core Leadership
+                {heroConfig?.craftTitle || 'Cinema, Motion & Core Leadership'}
               </h3>
               <p className="text-xs text-zinc-400 mt-2 leading-relaxed">
-                Video editing, photography, 2D motion graphics, and leading teams from concept to ship.
+                {heroConfig?.craftDesc ||
+                  'Video editing, photography, 2D motion graphics, and leading teams from concept to ship.'}
               </p>
             </div>
 
             <div className="mt-5 pt-4 border-t border-white/[0.06] flex flex-wrap gap-1.5">
-              {['Premiere Pro', 'After Effects', 'DaVinci', 'Sony Alpha', 'Illustrator'].map((tool) => (
+              {craftTools.map((tool, i) => (
                 <span
-                  key={tool}
+                  key={`${tool}-${i}`}
                   className="text-[10px] font-mono px-2 py-0.5 rounded bg-white/[0.04] text-zinc-300 border border-white/[0.06]"
                 >
                   {tool}
@@ -173,12 +176,48 @@ export default function HeroBento({ personal, stats }) {
               ))}
             </div>
           </div>
+        );
 
-          {/* Card 4: Interactive Vibe Shell (2 cols) */}
-          <div className="md:col-span-2 lg:col-span-2">
-            <TerminalWidget personal={personal} />
+      case 'terminal':
+        return (
+          <div key="terminal" className="md:col-span-2 lg:col-span-2">
+            <TerminalWidget personal={personal} radiusClass={cardRadius} />
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <section id="about" className="pt-28 sm:pt-32 pb-20 relative overflow-hidden">
+      {lottieConfig?.enabled && lottieConfig?.scope === 'hero' && (
+        <LottieBackground config={lottieConfig} className="absolute inset-0 -z-10" />
+      )}
+
+      <div className="max-w-6xl mx-auto px-5 sm:px-8 relative z-10">
+        {/* Minimalist Editorial Header */}
+        <div className="mb-12 max-w-3xl">
+          <div className="inline-flex items-center gap-2 text-xs font-mono text-zinc-400 mb-5">
+            <span className="w-1.5 h-1.5 rounded-full bg-accent inline-block" />
+            <span>{personal.statusBadge}</span>
+            <span className="text-zinc-700">/</span>
+            <span>{personal.location}</span>
           </div>
 
+          <h1 className="text-3xl sm:text-5xl font-bold tracking-tight text-white leading-[1.12]">
+            <RichText text={headline} />
+          </h1>
+
+          <p className="mt-5 text-sm sm:text-base text-zinc-400 leading-relaxed max-w-2xl">
+            <RichText text={subheadline} />
+          </p>
+        </div>
+
+        {/* Minimalist Monotone Bento Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          {bentoOrder.map((cardKey) => renderBentoCard(cardKey))}
         </div>
 
         {/* Hairline Architectural Metadata Bar */}
@@ -194,7 +233,6 @@ export default function HeroBento({ personal, stats }) {
             </div>
           ))}
         </div>
-
       </div>
     </section>
   );

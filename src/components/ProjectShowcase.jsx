@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { ArrowUpRight, Code2, Film, X } from 'lucide-react';
 import { GithubIcon } from './SocialIcons';
+import RichText from './RichText';
 
-export default function ProjectShowcase({ projects }) {
+export default function ProjectShowcase({ projects, sectionMeta, theme }) {
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedProject, setSelectedProject] = useState(null);
 
@@ -19,6 +20,9 @@ export default function ProjectShowcase({ projects }) {
       ? projects
       : projects.filter((p) => p.category === activeFilter);
 
+  const cardRadius = theme?.cardRadius || 'rounded-xl';
+  const showDotGrid = theme?.showDotGrid !== false;
+
   return (
     <section id="projects" className="py-20">
       <div className="max-w-6xl mx-auto px-5 sm:px-8">
@@ -27,13 +31,13 @@ export default function ProjectShowcase({ projects }) {
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-12 gap-6">
           <div>
             <span className="text-[11px] font-mono text-zinc-500 uppercase tracking-widest block mb-2">
-              03 / Selected Work
+              {sectionMeta?.eyebrow || '03 / Selected Work'}
             </span>
             <h2 className="text-2xl sm:text-3xl font-bold text-white tracking-tight">
-              Creations & Productions<span className="text-accent">.</span>
+              <RichText text={sectionMeta?.title || 'Creations & Productions==.=='} />
             </h2>
             <p className="mt-2 text-sm text-zinc-400 max-w-xl">
-              Practical software solutions, documentaries, motion packages, and visual identities.
+              <RichText text={sectionMeta?.subtitle || 'Practical software solutions, documentaries, motion packages, and visual identities.'} />
             </p>
           </div>
 
@@ -66,7 +70,7 @@ export default function ProjectShowcase({ projects }) {
             <div
               key={project.id}
               onClick={() => setSelectedProject(project)}
-              className="minimal-card rounded-xl p-6 cursor-pointer group flex flex-col justify-between"
+              className={`minimal-card ${cardRadius} p-6 cursor-pointer group flex flex-col justify-between`}
             >
               <div>
                 <div className="flex items-center justify-between mb-5">
@@ -120,7 +124,7 @@ export default function ProjectShowcase({ projects }) {
           onClick={() => setSelectedProject(null)}
         >
           <div
-            className="bg-[#0e0e10] border border-white/[0.12] rounded-xl max-w-xl w-full p-6 sm:p-8 relative"
+            className={`bg-[#0e0e10] border border-white/[0.12] ${cardRadius} max-w-xl w-full p-6 sm:p-8 relative`}
             onClick={(e) => e.stopPropagation()}
           >
             <button
@@ -154,7 +158,7 @@ export default function ProjectShowcase({ projects }) {
               </div>
             ) : (
               <div className="rounded-lg bg-[#09090b] border border-white/[0.08] p-6 mb-6 flex flex-col items-center justify-center text-center min-h-[140px] relative overflow-hidden">
-                <div className="absolute inset-0 bg-subtle-dots opacity-50" />
+                {showDotGrid && <div className="absolute inset-0 bg-subtle-dots opacity-50" />}
                 <div className="relative z-10 flex flex-col items-center">
                   <div className="w-9 h-9 rounded-lg border border-white/[0.1] bg-[#111113] flex items-center justify-center text-zinc-300 mb-2.5">
                     {selectedProject.category === 'video' ? (
