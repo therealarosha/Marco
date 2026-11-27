@@ -1,8 +1,10 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import PortfolioView from './components/PortfolioView';
 import LoadingScreen from './components/LoadingScreen';
-import { portfolioData as defaultData } from './data/portfolioData';
-import { subscribePortfolioContent } from './lib/portfolioService';
+import {
+  fetchPortfolioContent,
+  getInitialCachedContent
+} from './lib/portfolioService';
 
 const AdminCMS = lazy(() => import('./components/AdminCMS'));
 
@@ -22,11 +24,12 @@ const LOADER_SEEN_KEY = 'marco_loader_seen';
 
 export default function App() {
   const [route, setRoute] = useState(parseHashRoute);
-  const [content, setContent] = useState(defaultData);
+  const [content, setContent] = useState(getInitialCachedContent);
   const [loaderDismissed, setLoaderDismissed] = useState(() => {
     try {
+      const initial = getInitialCachedContent();
       return (
-        defaultData.siteConfig?.loader?.oncePerSession &&
+        initial.siteConfig?.loader?.oncePerSession &&
         sessionStorage.getItem(LOADER_SEEN_KEY) === '1'
       );
     } catch {
@@ -47,12 +50,15 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const unsubscribe = subscribePortfolioContent((result) => {
-      if (result?.data) {
+    let active = true;
+    fetchPortfolioContent().then((result) => {
+      if (active && result?.data) {
         setContent(result.data);
       }
     });
-    return () => unsubscribe();
+    return () => {
+      active = false;
+    };
   }, []);
 
   if (route.mode === 'admin') {
@@ -100,6 +106,7 @@ export default function App() {
       <PortfolioView
         content={content}
         activePageSlug={route.mode === 'page' ? route.pageSlug : null}
+        deferAnimations={showLoader}
       />
     </>
   );

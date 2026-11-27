@@ -1,4 +1,4 @@
-import { doc, getDoc, onSnapshot, setDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, serverTimestamp } from 'firebase/firestore';
 import { db, isFirebaseConfigured } from './firebase';
 import { portfolioData as defaultData } from '../data/portfolioData';
 import { normalizeHex } from './themeUtils';
@@ -6,11 +6,16 @@ import { estimateJsonKb } from './mediaUtils';
 
 const COLLECTION_NAME = 'portfolio';
 const DOC_ID = 'content';
+const CACHE_KEY = 'marco_portfolio_cache_v1';
+
+function cloneObj(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
 
 function mergeSiteConfig(remoteConfig) {
   const base = defaultData.siteConfig;
   if (!remoteConfig || typeof remoteConfig !== 'object') {
-    return structuredClone(base);
+    return cloneObj(base);
   }
   return {
     theme: {
@@ -27,13 +32,13 @@ function mergeSiteConfig(remoteConfig) {
     },
     sections: Array.isArray(remoteConfig.sections)
       ? remoteConfig.sections
-      : structuredClone(base.sections),
+      : cloneObj(base.sections),
     navbar: {
       ...base.navbar,
       ...(remoteConfig.navbar || {}),
       links: Array.isArray(remoteConfig.navbar?.links)
         ? remoteConfig.navbar.links
-        : structuredClone(base.navbar.links),
+        : cloneObj(base.navbar.links),
     },
     hero: {
       ...base.hero,
@@ -46,24 +51,24 @@ function mergeSiteConfig(remoteConfig) {
         : [...base.hero.craftTools],
       buttons: Array.isArray(remoteConfig.hero?.buttons)
         ? remoteConfig.hero.buttons
-        : structuredClone(base.hero.buttons),
+        : cloneObj(base.hero.buttons),
     },
     footer: {
       ...base.footer,
       ...(remoteConfig.footer || {}),
       buttons: Array.isArray(remoteConfig.footer?.buttons)
         ? remoteConfig.footer.buttons
-        : structuredClone(base.footer.buttons),
+        : cloneObj(base.footer.buttons),
     },
     pages: Array.isArray(remoteConfig.pages)
       ? remoteConfig.pages
-      : structuredClone(base.pages),
+      : cloneObj(base.pages),
   };
 }
 
 function mergeWithDefaults(remote) {
   if (!remote || typeof remote !== 'object') {
-    return structuredClone(defaultData);
+    return cloneObj(defaultData);
   }
   return {
     personal: {
@@ -99,10 +104,28 @@ function mergeWithDefaults(remote) {
   };
 }
 
+export function getInitialCachedContent() {
+  try {
+    const raw = localStorage.getItem(CACHE_KEY);
+    if (!raw) return defaultData;
+    return mergeWithDefaults(JSON.parse(raw));
+  } catch {
+    return defaultData;
+  }
+}
+
+function writeCachedContent(data) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
+  } catch {
+    // ignore storage quota errors on mobile devices
+  }
+}
+
 export async function fetchPortfolioContent() {
   if (!isFirebaseConfigured || !db) {
     return {
-      data: structuredClone(defaultData),
+      data: cloneObj(defaultData),
       source: 'local',
       existsInDb: false,
     };
@@ -111,66 +134,28 @@ export async function fetchPortfolioContent() {
   try {
     const snap = await getDoc(doc(db, COLLECTION_NAME, DOC_ID));
     if (snap.exists()) {
+      const merged = mergeWithDefaults(snap.data());
+      writeCachedContent(merged);
       return {
-        data: mergeWithDefaults(snap.data()),
+        data: merged,
         source: 'firestore',
         existsInDb: true,
       };
     }
     return {
-      data: structuredClone(defaultData),
+      data: cloneObj(defaultData),
       source: 'default',
       existsInDb: false,
     };
   } catch (error) {
     console.warn('Firestore fetch failed, using default content:', error);
     return {
-      data: structuredClone(defaultData),
+      data: getInitialCachedContent(),
       source: 'fallback',
       existsInDb: false,
       error,
     };
   }
-}
-
-export function subscribePortfolioContent(onUpdate) {
-  if (!isFirebaseConfigured || !db) {
-    onUpdate({
-      data: structuredClone(defaultData),
-      source: 'local',
-      existsInDb: false,
-    });
-    return () => {};
-  }
-
-  const ref = doc(db, COLLECTION_NAME, DOC_ID);
-  return onSnapshot(
-    ref,
-    (snap) => {
-      if (snap.exists()) {
-        onUpdate({
-          data: mergeWithDefaults(snap.data()),
-          source: 'firestore',
-          existsInDb: true,
-        });
-      } else {
-        onUpdate({
-          data: structuredClone(defaultData),
-          source: 'default',
-          existsInDb: false,
-        });
-      }
-    },
-    (error) => {
-      console.warn('Firestore subscription error, falling back to defaults:', error);
-      onUpdate({
-        data: structuredClone(defaultData),
-        source: 'fallback',
-        existsInDb: false,
-        error,
-      });
-    }
-  );
 }
 
 function normalizeOptionalUrl(url) {
@@ -304,5 +289,6 @@ export async function savePortfolioContent(content) {
   };
 
   await setDoc(doc(db, COLLECTION_NAME, DOC_ID), payload);
+  writeCachedContent(clean);
   return clean;
 }

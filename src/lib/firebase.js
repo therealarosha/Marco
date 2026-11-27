@@ -1,5 +1,4 @@
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth, GoogleAuthProvider } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -24,17 +23,29 @@ export const isFirebaseConfigured = Boolean(
 );
 
 let app = null;
-let auth = null;
 let db = null;
-let googleProvider = null;
 
 if (isFirebaseConfigured) {
   app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
-  auth = getAuth(app);
   db = getFirestore(app);
-  googleProvider = new GoogleAuthProvider();
-  // Always let the owner pick their authorized Google account cleanly
-  googleProvider.setCustomParameters({ prompt: 'select_account' });
 }
 
-export { app, auth, db, googleProvider };
+let cachedAuthBundle = null;
+
+/**
+ * Dynamically loads Firebase Auth only when visiting the CMS (#/admin),
+ * keeping visitor mobile bundles light.
+ */
+export async function loadFirebaseAuth() {
+  if (!isFirebaseConfigured || !app) return null;
+  if (cachedAuthBundle) return cachedAuthBundle;
+
+  const { getAuth, GoogleAuthProvider } = await import('firebase/auth');
+  const auth = getAuth(app);
+  const googleProvider = new GoogleAuthProvider();
+  googleProvider.setCustomParameters({ prompt: 'select_account' });
+  cachedAuthBundle = { auth, googleProvider };
+  return cachedAuthBundle;
+}
+
+export { app, db };

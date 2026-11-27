@@ -1,47 +1,87 @@
-import React, { useState, useEffect } from 'react';
+import React, { lazy, Suspense, useEffect, useState } from 'react';
 import TerminalWidget from './TerminalWidget';
 import RichText from './RichText';
 import ActionButton from './ActionButton';
-import LottieBackground from './LottieBackground';
+
+const LottieBackground = lazy(() => import('./LottieBackground'));
+
+function RoleRotator({ roles }) {
+  const [index, setIndex] = useState(0);
+
+  useEffect(() => {
+    if (roles.length <= 1) return;
+    let id = null;
+
+    const start = () => {
+      if (id) clearInterval(id);
+      id = setInterval(() => {
+        setIndex((prev) => (prev + 1) % roles.length);
+      }, 2800);
+    };
+
+    const onVisChange = () => {
+      if (document.visibilityState === 'hidden') {
+        if (id) clearInterval(id);
+        id = null;
+      } else {
+        start();
+      }
+    };
+
+    start();
+    document.addEventListener('visibilitychange', onVisChange);
+    return () => {
+      if (id) clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisChange);
+    };
+  }, [roles.length]);
+
+  const safeIndex = index % roles.length;
+
+  return (
+    <span className="text-zinc-200 font-medium">
+      {roles[safeIndex]}
+    </span>
+  );
+}
+
+function formatColomboTime() {
+  try {
+    return new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Colombo',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    }).format(new Date());
+  } catch {
+    return new Date().toLocaleTimeString();
+  }
+}
+
+function LocalClock() {
+  const [localTime, setLocalTime] = useState(formatColomboTime);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (document.visibilityState !== 'hidden') {
+        setLocalTime(formatColomboTime());
+      }
+    }, 15000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return <span className="text-zinc-300 font-mono">{localTime} SLST</span>;
+}
 
 export default function HeroBento({
   personal,
   stats,
   heroConfig,
   lottieConfig,
-  theme
+  theme,
+  deferAnimations = false,
 }) {
-  const [activeRoleIndex, setActiveRoleIndex] = useState(0);
-  const [localTime, setLocalTime] = useState('');
-
   const roles = personal.roles?.length ? personal.roles : ['Developer'];
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setActiveRoleIndex((prev) => (prev + 1) % roles.length);
-    }, 2800);
-    return () => clearInterval(interval);
-  }, [roles.length]);
-
-  useEffect(() => {
-    const updateTime = () => {
-      try {
-        const timeStr = new Intl.DateTimeFormat('en-US', {
-          timeZone: 'Asia/Colombo',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: false
-        }).format(new Date());
-        setLocalTime(timeStr);
-      } catch {
-        setLocalTime(new Date().toLocaleTimeString());
-      }
-    };
-    updateTime();
-    const timer = setInterval(updateTime, 10000);
-    return () => clearInterval(timer);
-  }, []);
-
   const cardRadius = theme?.cardRadius || 'rounded-xl';
   const headline =
     heroConfig?.headline ||
@@ -63,8 +103,6 @@ export default function HeroBento({
   const craftTools = heroConfig?.craftTools?.length
     ? heroConfig.craftTools
     : ['Premiere Pro', 'After Effects', 'DaVinci', 'Sony Alpha', 'Illustrator'];
-
-  const safeRoleIndex = activeRoleIndex % roles.length;
 
   const renderBentoCard = (key) => {
     switch (key) {
@@ -91,9 +129,7 @@ export default function HeroBento({
 
               <div className="mt-2 mb-6 flex items-center gap-2 font-mono text-xs sm:text-sm">
                 <span className="text-accent">-&gt;</span>
-                <span key={safeRoleIndex} className="text-zinc-200 font-medium">
-                  {roles[safeRoleIndex]}
-                </span>
+                <RoleRotator roles={roles} />
               </div>
 
               <div className="space-y-3.5 text-xs sm:text-sm text-zinc-400 leading-relaxed">
@@ -140,7 +176,7 @@ export default function HeroBento({
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-zinc-500 font-mono">Local Time</span>
-                <span className="text-zinc-300 font-mono">{localTime || '--:--'} SLST</span>
+                <LocalClock />
               </div>
             </div>
           </div>
@@ -192,8 +228,10 @@ export default function HeroBento({
 
   return (
     <section id="about" className="pt-28 sm:pt-32 pb-20 relative overflow-hidden">
-      {lottieConfig?.enabled && lottieConfig?.scope === 'hero' && (
-        <LottieBackground config={lottieConfig} className="absolute inset-0 -z-10" />
+      {!deferAnimations && lottieConfig?.enabled && lottieConfig?.scope === 'hero' && (
+        <Suspense fallback={null}>
+          <LottieBackground config={lottieConfig} className="absolute inset-0 -z-10" />
+        </Suspense>
       )}
 
       <div className="max-w-6xl mx-auto px-5 sm:px-8 relative z-10">

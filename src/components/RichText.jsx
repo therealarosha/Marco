@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 
 const TOKEN_REGEX =
   /(==[^=]+==|\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`|\[[^\]]+\]\((?:https?:\/\/|mailto:|#)[^)]+\))/g;
@@ -11,7 +11,7 @@ function isSafeHref(href) {
  * Renders lightweight inline WYSIWYG tokens safely as React elements:
  * ==accent==, **bold**, *italic*, `code`, and [label](url).
  */
-export default function RichText({ text = '' }) {
+function RichText({ text = '' }) {
   if (typeof text !== 'string' || !text) return null;
 
   const parts = text.split(TOKEN_REGEX);
@@ -77,3 +77,5 @@ export default function RichText({ text = '' }) {
     </>
   );
 }
+
+export default memo(RichText);

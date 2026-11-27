@@ -65,7 +65,7 @@ export default function Navbar({
     <header
       className={`${isPreview ? 'sticky' : 'fixed'} top-0 left-0 right-0 z-40 transition-colors duration-200 ${
         scrolled || isPreview
-          ? 'py-3.5 bg-[#09090b]/90 backdrop-blur-md border-b border-white/[0.08]'
+          ? 'py-3.5 bg-[#09090b]/95 md:bg-[#09090b]/90 md:backdrop-blur-md border-b border-white/[0.08]'
           : 'py-6 bg-transparent'
       }`}
     >

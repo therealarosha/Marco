@@ -1,12 +1,18 @@
-import React, { useEffect, useMemo, useRef } from 'react';
-import lottie from 'lottie-web/build/player/lottie_light';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import lottie from 'lottie-web/build/player/lottie_light_canvas';
 import { LOTTIE_PRESETS } from '../data/lottiePresets';
+import { useDeviceProfile } from '../lib/deviceProfile';
 
-export default function LottieBackground({ config, className = '' }) {
+export default function LottieBackground({ config, className = '', forceRun = false }) {
   const containerRef = useRef(null);
   const animRef = useRef(null);
+  const device = useDeviceProfile();
+  const [isInView, setIsInView] = useState(true);
+  const [isTabVisible, setIsTabVisible] = useState(() =>
+    typeof document === 'undefined' ? true : document.visibilityState !== 'hidden'
+  );
 
-  const enabled = Boolean(config?.enabled);
+  const enabled = Boolean(config?.enabled) && (forceRun || device.canRunLottie);
   const sourceType = config?.sourceType || 'preset';
   const presetKey = config?.preset || 'orbital';
   const url = (config?.url || '').trim();
@@ -15,7 +21,7 @@ export default function LottieBackground({ config, className = '' }) {
   const speed = Number(config?.speed) || 1;
   const speedRef = useRef(speed);
   const opacity = typeof config?.opacity === 'number' ? config.opacity : 0.3;
-  const blur = Number(config?.blur) || 0;
+  const blur = device.isMobile ? 0 : Number(config?.blur) || 0;
   const monochrome = Boolean(config?.monochrome);
 
   const parsedCustomData = useMemo(() => {
@@ -27,6 +33,30 @@ export default function LottieBackground({ config, className = '' }) {
     }
   }, [sourceType, customJson]);
 
+  // Pause animation when browser tab or phone screen is backgrounded
+  useEffect(() => {
+    const onVisChange = () => {
+      setIsTabVisible(document.visibilityState !== 'hidden');
+    };
+    document.addEventListener('visibilitychange', onVisChange);
+    return () => document.removeEventListener('visibilitychange', onVisChange);
+  }, []);
+
+  // Pause animation when container scrolls out of viewport
+  useEffect(() => {
+    if (!enabled || !containerRef.current || typeof IntersectionObserver === 'undefined') {
+      return;
+    }
+    const obs = new IntersectionObserver(
+      ([entry]) => {
+        setIsInView(entry.isIntersecting);
+      },
+      { threshold: 0.01 }
+    );
+    obs.observe(containerRef.current);
+    return () => obs.disconnect();
+  }, [enabled]);
+
   useEffect(() => {
     if (!enabled || !containerRef.current) return;
 
@@ -37,11 +67,13 @@ export default function LottieBackground({ config, className = '' }) {
 
     const options = {
       container: containerRef.current,
-      renderer: 'svg',
+      renderer: 'canvas',
       loop,
       autoplay: true,
       rendererSettings: {
         preserveAspectRatio: 'xMidYMid slice',
+        clearCanvas: true,
+        dpr: device.lottieDpr,
       },
     };
 
@@ -51,10 +83,13 @@ export default function LottieBackground({ config, className = '' }) {
       options.animationData = parsedCustomData;
     } else {
       const preset = LOTTIE_PRESETS[presetKey] || LOTTIE_PRESETS.orbital;
-      options.animationData = structuredClone(preset.data);
+      options.animationData = JSON.parse(JSON.stringify(preset.data));
     }
 
     const anim = lottie.loadAnimation(options);
+    if (device.isMobile || device.isLowEnd) {
+      anim.setSubframe?.(false);
+    }
     anim.setSpeed(speedRef.current);
     animRef.current = anim;
 
@@ -64,7 +99,17 @@ export default function LottieBackground({ config, className = '' }) {
         animRef.current = null;
       }
     };
-  }, [enabled, sourceType, presetKey, url, parsedCustomData, loop]);
+  }, [
+    enabled,
+    sourceType,
+    presetKey,
+    url,
+    parsedCustomData,
+    loop,
+    device.lottieDpr,
+    device.isMobile,
+    device.isLowEnd,
+  ]);
 
   useEffect(() => {
     speedRef.current = speed;
@@ -72,6 +117,16 @@ export default function LottieBackground({ config, className = '' }) {
       animRef.current.setSpeed(speed);
     }
   }, [speed]);
+
+  useEffect(() => {
+    const anim = animRef.current;
+    if (!anim) return;
+    if (isInView && isTabVisible) {
+      anim.play();
+    } else {
+      anim.pause();
+    }
+  }, [isInView, isTabVisible]);
 
   if (!enabled) return null;
 

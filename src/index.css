@@ -42,3 +42,11 @@
   background-image: radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px);
   background-size: 20px 20px;
 }
+
+/* Skip off-screen layout/paint cost on mobile phones */
+@supports (content-visibility: auto) {
+  .cv-auto {
+    content-visibility: auto;
+    contain-intrinsic-size: auto 520px;
+  }
+}

@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { lazy, Suspense, useEffect } from 'react';
 import Navbar from './Navbar';
 import HeroBento from './HeroBento';
 import CreativeArsenal from './CreativeArsenal';
@@ -6,9 +6,10 @@ import ProjectShowcase from './ProjectShowcase';
 import FilmStripGallery from './FilmStripGallery';
 import LeadershipSection from './LeadershipSection';
 import FooterAndContact from './FooterAndContact';
-import LottieBackground from './LottieBackground';
 import CustomPageView from './CustomPageView';
 import { applyThemeToRoot } from '../lib/themeUtils';
+
+const LottieBackground = lazy(() => import('./LottieBackground'));
 
 function PreviewSelectableBlock({
   blockId,
@@ -17,10 +18,12 @@ function PreviewSelectableBlock({
   selectedBlock,
   onSelectBlock,
   hidden = false,
+  offscreenOptimize = false,
   children,
 }) {
   if (!isPreview) {
-    return hidden ? null : children;
+    if (hidden) return null;
+    return offscreenOptimize ? <div className="cv-auto">{children}</div> : children;
   }
 
   const isSelected = selectedBlock === blockId;
@@ -55,6 +58,7 @@ function PreviewSelectableBlock({
 export default function PortfolioView({
   content,
   activePageSlug = null,
+  deferAnimations = false,
   isPreview = false,
   selectedBlock = null,
   onSelectBlock = null,
@@ -105,6 +109,7 @@ export default function PortfolioView({
             heroConfig={siteConfig.hero}
             lottieConfig={lottieConfig}
             theme={theme}
+            deferAnimations={deferAnimations}
           />
         );
       case 'arsenal':
@@ -150,11 +155,13 @@ export default function PortfolioView({
         isPreview ? 'min-h-full' : 'min-h-screen'
       } bg-[#09090b] text-zinc-100 relative selection:bg-accent/25 selection:text-white overflow-x-hidden`}
     >
-      {lottieConfig.enabled && lottieConfig.scope !== 'hero' && (
-        <LottieBackground
-          config={lottieConfig}
-          className={`${isPreview ? 'absolute' : 'fixed'} inset-0 z-0`}
-        />
+      {!deferAnimations && lottieConfig.enabled && lottieConfig.scope !== 'hero' && (
+        <Suspense fallback={null}>
+          <LottieBackground
+            config={lottieConfig}
+            className={`${isPreview ? 'absolute' : 'fixed'} inset-0 z-0`}
+          />
+        </Suspense>
       )}
 
       <PreviewSelectableBlock
@@ -193,6 +200,7 @@ export default function PortfolioView({
               selectedBlock={selectedBlock}
               onSelectBlock={onSelectBlock}
               hidden={sec.visible === false}
+              offscreenOptimize={sec.id !== 'hero'}
             >
               {renderSection(sec)}
             </PreviewSelectableBlock>
@@ -206,6 +214,7 @@ export default function PortfolioView({
         isPreview={isPreview}
         selectedBlock={selectedBlock}
         onSelectBlock={onSelectBlock}
+        offscreenOptimize
       >
         <FooterAndContact
           personal={content.personal}

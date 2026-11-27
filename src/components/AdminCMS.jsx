@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   AlertCircle,
   ArrowDown,
@@ -19,7 +18,7 @@ import {
   Tablet,
   Trash2
 } from 'lucide-react';
-import { auth, googleProvider, isFirebaseConfigured, ADMIN_EMAIL } from '../lib/firebase';
+import { loadFirebaseAuth, isFirebaseConfigured, ADMIN_EMAIL } from '../lib/firebase';
 import { fetchPortfolioContent, savePortfolioContent } from '../lib/portfolioService';
 import { portfolioData as defaultData } from '../data/portfolioData';
 import PortfolioView from './PortfolioView';
@@ -29,15 +28,19 @@ import { Field, RichTextField, TextArea } from './cms/CmsFields';
 import { PhotoInput, VideoInput } from './cms/MediaPicker';
 import { moveItem } from '../lib/listUtils';
 import { estimateJsonKb } from '../lib/mediaUtils';
+import { useDeviceProfile } from '../lib/deviceProfile';
 
 export default function AdminCMS({ onExit }) {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(isFirebaseConfigured);
   const [authError, setAuthError] = useState('');
+  const authApiRef = useRef(null);
+  const device = useDeviceProfile();
 
   const [draft, setDraft] = useState(null);
   const [dbExists, setDbExists] = useState(false);
   const [workspaceMode, setWorkspaceMode] = useState('wysiwyg'); // 'wysiwyg' | 'content'
+  const [mobilePane, setMobilePane] = useState('editor'); // 'editor' | 'preview'
   const [selectedBlock, setSelectedBlock] = useState('hero');
   const [previewPageSlug, setPreviewPageSlug] = useState(null);
   const [selectedPageBlockIndex, setSelectedPageBlockIndex] = useState(null);
@@ -49,24 +52,36 @@ export default function AdminCMS({ onExit }) {
   const [statusMsg, setStatusMsg] = useState(null);
 
   useEffect(() => {
-    if (!isFirebaseConfigured || !auth) return;
-    const unsub = onAuthStateChanged(auth, async (currentUser) => {
-      if (currentUser) {
-        const email = (currentUser.email || '').toLowerCase();
-        if (email !== ADMIN_EMAIL || !currentUser.emailVerified) {
-          await signOut(auth);
-          setUser(null);
-          setAuthError(`Access denied for ${currentUser.email}. Only ${ADMIN_EMAIL} is authorized.`);
-        } else {
-          setUser(currentUser);
-          setAuthError('');
-        }
-      } else {
-        setUser(null);
+    if (!isFirebaseConfigured) return;
+    const state = { cancelled: false, unsub: null };
+
+    Promise.all([loadFirebaseAuth(), import('firebase/auth')]).then(
+      ([bundle, authSdk]) => {
+        if (state.cancelled || !bundle) return;
+        authApiRef.current = { ...bundle, ...authSdk };
+        state.unsub = authSdk.onAuthStateChanged(bundle.auth, async (currentUser) => {
+          if (currentUser) {
+            const email = (currentUser.email || '').toLowerCase();
+            if (email !== ADMIN_EMAIL || !currentUser.emailVerified) {
+              await authSdk.signOut(bundle.auth);
+              setUser(null);
+              setAuthError(`Access denied for ${currentUser.email}. Only ${ADMIN_EMAIL} is authorized.`);
+            } else {
+              setUser(currentUser);
+              setAuthError('');
+            }
+          } else {
+            setUser(null);
+          }
+          setAuthLoading(false);
+        });
       }
-      setAuthLoading(false);
-    });
-    return () => unsub();
+    );
+
+    return () => {
+      state.cancelled = true;
+      state.unsub?.();
+    };
   }, []);
 
   useEffect(() => {
@@ -84,13 +99,14 @@ export default function AdminCMS({ onExit }) {
   }, [user]);
 
   const handleSignIn = async () => {
-    if (!auth || !googleProvider) return;
+    const api = authApiRef.current;
+    if (!api) return;
     setAuthError('');
     try {
-      const result = await signInWithPopup(auth, googleProvider);
+      const result = await api.signInWithPopup(api.auth, api.googleProvider);
       const email = (result.user?.email || '').toLowerCase();
       if (email !== ADMIN_EMAIL) {
-        await signOut(auth);
+        await api.signOut(api.auth);
         setAuthError(`Access denied for ${result.user?.email}. Sign in with ${ADMIN_EMAIL}.`);
       }
     } catch (err) {
@@ -99,8 +115,9 @@ export default function AdminCMS({ onExit }) {
   };
 
   const handleSignOut = async () => {
-    if (!auth) return;
-    await signOut(auth);
+    const api = authApiRef.current;
+    if (!api) return;
+    await api.signOut(api.auth);
     setDraft(null);
   };
 
@@ -435,98 +452,130 @@ export default function AdminCMS({ onExit }) {
 
       {/* MODE 1: SPLIT-SCREEN VISUAL WYSIWYG WORKSPACE */}
       {workspaceMode === 'wysiwyg' ? (
-        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 min-h-[calc(100vh-58px)]">
+        <div className="flex-1 flex flex-col lg:grid lg:grid-cols-12 min-h-[calc(100vh-58px)]">
+          {/* Mobile / Tablet Pane Toggle (keeps only Editor OR Preview mounted to prevent phone OOM) */}
+          {device.isMobile && (
+            <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/[0.08] bg-[#0c0c0e]">
+              <button
+                type="button"
+                onClick={() => setMobilePane('editor')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-mono ${
+                  mobilePane === 'editor'
+                    ? 'bg-accent text-white'
+                    : 'bg-[#09090b] text-zinc-400 border border-white/[0.08]'
+                }`}
+              >
+                Visual Controls
+              </button>
+              <button
+                type="button"
+                onClick={() => setMobilePane('preview')}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-mono ${
+                  mobilePane === 'preview'
+                    ? 'bg-accent text-white'
+                    : 'bg-[#09090b] text-zinc-400 border border-white/[0.08]'
+                }`}
+              >
+                Live Preview
+              </button>
+            </div>
+          )}
+
           {/* Left Visual Inspector (4 cols) */}
-          <div className="lg:col-span-4 xl:col-span-4 lg:h-[calc(100vh-58px)] lg:sticky lg:top-[58px] overflow-hidden">
-            <VisualEditorPanel
-              draft={draft}
-              updateDraft={updateDraft}
-              selectedBlock={selectedBlock}
-              onSelectBlock={handleSelectBlock}
-              previewPageSlug={previewPageSlug}
-              onSelectPreviewPageSlug={(slug) => {
-                setPreviewPageSlug(slug);
-                if (slug) setSelectedBlock('pages');
-              }}
-              selectedPageBlockIndex={selectedPageBlockIndex}
-              onSelectPageBlockIndex={setSelectedPageBlockIndex}
-              onReplayLoader={() => setReplayingLoader(true)}
-            />
-          </div>
+          {(!device.isMobile || mobilePane === 'editor') && (
+            <div className="lg:col-span-4 xl:col-span-4 lg:h-[calc(100vh-58px)] lg:sticky lg:top-[58px] overflow-hidden">
+              <VisualEditorPanel
+                draft={draft}
+                updateDraft={updateDraft}
+                selectedBlock={selectedBlock}
+                onSelectBlock={handleSelectBlock}
+                previewPageSlug={previewPageSlug}
+                onSelectPreviewPageSlug={(slug) => {
+                  setPreviewPageSlug(slug);
+                  if (slug) setSelectedBlock('pages');
+                }}
+                selectedPageBlockIndex={selectedPageBlockIndex}
+                onSelectPageBlockIndex={setSelectedPageBlockIndex}
+                onReplayLoader={() => setReplayingLoader(true)}
+              />
+            </div>
+          )}
 
           {/* Right Live Interactive WYSIWYG Canvas (8 cols) */}
-          <div className="lg:col-span-8 xl:col-span-8 bg-[#050506] p-4 sm:p-6 overflow-y-auto">
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-3 text-[11px] font-mono text-zinc-500">
-              <div className="flex flex-wrap items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPreviewPageSlug(null);
-                    if (selectedBlock === 'pages') setSelectedBlock('hero');
-                  }}
-                  className={`px-2 py-0.5 rounded border transition-colors ${
-                    !previewPageSlug
-                      ? 'bg-accent text-white border-accent'
-                      : 'bg-[#101012] text-zinc-400 border-white/[0.08] hover:text-white'
-                  }`}
-                >
-                  Home
-                </button>
-                {customPages.map((p) => (
+          {(!device.isMobile || mobilePane === 'preview') && (
+            <div className="lg:col-span-8 xl:col-span-8 bg-[#050506] p-4 sm:p-6 overflow-y-auto">
+              <div className="flex flex-wrap items-center justify-between gap-3 mb-3 text-[11px] font-mono text-zinc-500">
+                <div className="flex flex-wrap items-center gap-1.5">
                   <button
-                    key={p.id || p.slug}
                     type="button"
                     onClick={() => {
-                      setPreviewPageSlug(p.slug);
-                      setSelectedBlock('pages');
+                      setPreviewPageSlug(null);
+                      if (selectedBlock === 'pages') setSelectedBlock('hero');
                     }}
                     className={`px-2 py-0.5 rounded border transition-colors ${
-                      previewPageSlug === p.slug
+                      !previewPageSlug
                         ? 'bg-accent text-white border-accent'
                         : 'bg-[#101012] text-zinc-400 border-white/[0.08] hover:text-white'
                     }`}
                   >
-                    /{p.slug}
+                    Home
                   </button>
-                ))}
+                  {customPages.map((p) => (
+                    <button
+                      key={p.id || p.slug}
+                      type="button"
+                      onClick={() => {
+                        setPreviewPageSlug(p.slug);
+                        setSelectedBlock('pages');
+                      }}
+                      className={`px-2 py-0.5 rounded border transition-colors ${
+                        previewPageSlug === p.slug
+                          ? 'bg-accent text-white border-accent'
+                          : 'bg-[#101012] text-zinc-400 border-white/[0.08] hover:text-white'
+                      }`}
+                    >
+                      /{p.slug}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setReplayingLoader(true)}
+                    className="inline-flex items-center gap-1 text-zinc-400 hover:text-white transition-colors"
+                  >
+                    <Play className="w-3 h-3 text-accent" />
+                    <span>Replay Intro</span>
+                  </button>
+                  <span className={docKb > 850 ? 'text-accent' : 'text-zinc-500'}>
+                    {docKb} KB / 950 KB
+                  </span>
+                </div>
               </div>
 
-              <div className="flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => setReplayingLoader(true)}
-                  className="inline-flex items-center gap-1 text-zinc-400 hover:text-white transition-colors"
-                >
-                  <Play className="w-3 h-3 text-accent" />
-                  <span>Replay Intro</span>
-                </button>
-                <span className={docKb > 850 ? 'text-accent' : 'text-zinc-500'}>
-                  {docKb} KB / 950 KB
-                </span>
+              <div
+                className={`mx-auto ${previewWidthClass} border border-white/[0.1] rounded-xl overflow-hidden shadow-2xl transition-all duration-300`}
+              >
+                <PortfolioView
+                  content={draft}
+                  activePageSlug={previewPageSlug}
+                  isPreview
+                  selectedBlock={selectedBlock}
+                  onSelectBlock={handleSelectBlock}
+                  onNavigatePage={(slug) => {
+                    setPreviewPageSlug(slug);
+                    setSelectedBlock(slug ? 'pages' : 'hero');
+                  }}
+                  selectedPageBlockIndex={selectedPageBlockIndex}
+                  onSelectPageBlockIndex={(idx) => {
+                    setSelectedBlock('pages');
+                    setSelectedPageBlockIndex(idx);
+                  }}
+                />
               </div>
             </div>
-
-            <div
-              className={`mx-auto ${previewWidthClass} border border-white/[0.1] rounded-xl overflow-hidden shadow-2xl transition-all duration-300`}
-            >
-              <PortfolioView
-                content={draft}
-                activePageSlug={previewPageSlug}
-                isPreview
-                selectedBlock={selectedBlock}
-                onSelectBlock={handleSelectBlock}
-                onNavigatePage={(slug) => {
-                  setPreviewPageSlug(slug);
-                  setSelectedBlock(slug ? 'pages' : 'hero');
-                }}
-                selectedPageBlockIndex={selectedPageBlockIndex}
-                onSelectPageBlockIndex={(idx) => {
-                  setSelectedBlock('pages');
-                  setSelectedPageBlockIndex(idx);
-                }}
-              />
-            </div>
-          </div>
+          )}
         </div>
       ) : (
         /* MODE 2: STRUCTURED CONTENT & DATA TABS */
