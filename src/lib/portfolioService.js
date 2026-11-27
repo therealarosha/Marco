@@ -116,7 +116,7 @@ export function subscribePortfolioContent(onUpdate) {
   );
 }
 
-export async function savePortfolioContent(content, userEmail) {
+export async function savePortfolioContent(content) {
   if (!isFirebaseConfigured || !db) {
     throw new Error('Firebase is not configured. Add VITE_FIREBASE_* environment variables.');
   }
@@ -129,7 +129,6 @@ export async function savePortfolioContent(content, userEmail) {
     gallery: content.gallery,
     leadershipPillars: content.leadershipPillars,
     updatedAt: serverTimestamp(),
-    updatedBy: userEmail || '',
   };
 
   await setDoc(doc(db, COLLECTION_NAME, DOC_ID), payload);

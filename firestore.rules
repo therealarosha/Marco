@@ -1,18 +1,246 @@
 rules_version = '2';
 
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: portfolio
+// Document ID: content (singleton public portfolio CMS document)
+// Fields (all 7 top-level keys required on create & update, strict hasOnly):
+//   - personal: map (required, exact 11 keys)
+//       - name: string (required, 1..120 chars)
+//       - displayName: string (required, 1..120 chars)
+//       - headline: string (required, 0..300 chars)
+//       - subheadline: string (required, 0..600 chars)
+//       - university: string (required, 0..200 chars)
+//       - faculty: string (required, 0..200 chars)
+//       - statusBadge: string (required, 0..120 chars)
+//       - location: string (required, 0..120 chars)
+//       - bio: list<string> (required, 1..8 items, each 0..2000 chars)
+//       - roles: list<string> (required, 0..16 items, each 0..80 chars)
+//       - contacts: map (required, exact keys: email, github, linkedin, instagram, youtube)
+//           - email: string (required, '' or valid email <= 160 chars)
+//           - github: string (required, '' or http(s) URL <= 300 chars)
+//           - linkedin: string (required, '' or http(s) URL <= 300 chars)
+//           - instagram: string (required, '' or http(s) URL <= 300 chars)
+//           - youtube: string (required, '' or http(s) URL <= 300 chars)
+//   - stats: list<map> (required, 1..8 items)
+//   - arsenal: map (required, exact keys: tech, creative, leadership)
+//       - tech: list<map> (required, 0..25 items)
+//       - creative: list<map> (required, 0..25 items)
+//       - leadership: list<map> (required, 0..25 items)
+//   - projects: list<map> (required, 0..40 items)
+//   - gallery: list<map> (required, 0..40 items)
+//   - leadershipPillars: list<map> (required, 1..8 items)
+//   - updatedAt: timestamp (required, must equal request.time via serverTimestamp())
+//
+// Security & Design Notes:
+//   - Public visitors perform single-document reads (getDoc / onSnapshot) on
+//     `/portfolio/content`, so `get` is enabled while collection `list` is denied.
+//   - Note on public contact metadata: `/portfolio/content` is publicly readable
+//     and includes `personal.contacts.email` (displayed in the footer), while the
+//     admin's Google account email is not stored on `/portfolio/content`.
+//   - Only the verified Google owner account `arodisspj2006@gmail.com`
+//     (`email_verified == true`) can create or update `/portfolio/content`.
+//   - Deleting `/portfolio/content` and accessing any other path are denied.
+//   - Cloud Firestore Rules do not support list loops and limit evaluation to
+//     1,000 expressions per request; therefore, bounded string arrays (`bio`,
+//     `roles`) validate every element up to max length while variable-length
+//     object arrays (`stats`, `arsenal.*`, `projects`, `gallery`,
+//     `leadershipPillars`) enforce `is list` and size bounds under single-owner
+//     write authority.
+//
+// ===============================================================
+
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /portfolio/{document=**} {
-      // Anyone visiting the portfolio can read public site content
-      allow read: if true;
 
-      // Only the verified owner Google account can create/update/delete content
-      allow write: if request.auth != null
-                   && request.auth.token.email == "arodisspj2006@gmail.com"
-                   && request.auth.token.email_verified == true;
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
     }
 
-    // Deny access to any other collections
+    function isVerifiedOwner() {
+      return isAuthenticated()
+        && ('email' in request.auth.token)
+        && ('email_verified' in request.auth.token)
+        && request.auth.token.email is string
+        && request.auth.token.email.lower() == 'arodisspj2006@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+
+    function hasRequiredFields(data, fields) {
+      return data.keys().hasAll(fields);
+    }
+
+    function hasOnlyAllowedFields(data, fields) {
+      return data.keys().hasOnly(fields);
+    }
+
+    function isBoundedString(val, minLen, maxLen) {
+      return val is string
+        && val.size() >= minLen
+        && val.size() <= maxLen;
+    }
+
+    function isValidEmail(email) {
+      return email is string
+        && email.size() <= 160
+        && email.matches('^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$');
+    }
+
+    function isValidUrl(url) {
+      return url is string
+        && url.size() <= 300
+        && (url.matches('^https://.*') || url.matches('^http://.*'));
+    }
+
+    function isValidOptionalUrl(url) {
+      return url is string && (url == '' || isValidUrl(url));
+    }
+
+    function isValidListBounds(val, minSize, maxSize) {
+      return val is list
+        && val.size() >= minSize
+        && val.size() <= maxSize;
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidBioList(bio) {
+      return isValidListBounds(bio, 1, 8)
+        && (bio.size() <= 0 || (bio[0] is string && bio[0].size() <= 2000))
+        && (bio.size() <= 1 || (bio[1] is string && bio[1].size() <= 2000))
+        && (bio.size() <= 2 || (bio[2] is string && bio[2].size() <= 2000))
+        && (bio.size() <= 3 || (bio[3] is string && bio[3].size() <= 2000))
+        && (bio.size() <= 4 || (bio[4] is string && bio[4].size() <= 2000))
+        && (bio.size() <= 5 || (bio[5] is string && bio[5].size() <= 2000))
+        && (bio.size() <= 6 || (bio[6] is string && bio[6].size() <= 2000))
+        && (bio.size() <= 7 || (bio[7] is string && bio[7].size() <= 2000));
+    }
+
+    function isValidRolesList(roles) {
+      return isValidListBounds(roles, 0, 16)
+        && (roles.size() <= 0 || (roles[0] is string && roles[0].size() <= 80))
+        && (roles.size() <= 1 || (roles[1] is string && roles[1].size() <= 80))
+        && (roles.size() <= 2 || (roles[2] is string && roles[2].size() <= 80))
+        && (roles.size() <= 3 || (roles[3] is string && roles[3].size() <= 80))
+        && (roles.size() <= 4 || (roles[4] is string && roles[4].size() <= 80))
+        && (roles.size() <= 5 || (roles[5] is string && roles[5].size() <= 80))
+        && (roles.size() <= 6 || (roles[6] is string && roles[6].size() <= 80))
+        && (roles.size() <= 7 || (roles[7] is string && roles[7].size() <= 80))
+        && (roles.size() <= 8 || (roles[8] is string && roles[8].size() <= 80))
+        && (roles.size() <= 9 || (roles[9] is string && roles[9].size() <= 80))
+        && (roles.size() <= 10 || (roles[10] is string && roles[10].size() <= 80))
+        && (roles.size() <= 11 || (roles[11] is string && roles[11].size() <= 80))
+        && (roles.size() <= 12 || (roles[12] is string && roles[12].size() <= 80))
+        && (roles.size() <= 13 || (roles[13] is string && roles[13].size() <= 80))
+        && (roles.size() <= 14 || (roles[14] is string && roles[14].size() <= 80))
+        && (roles.size() <= 15 || (roles[15] is string && roles[15].size() <= 80));
+    }
+
+    function isValidContacts(contacts) {
+      let keys = ['email', 'github', 'linkedin', 'instagram', 'youtube'];
+      return contacts is map
+        && hasOnlyAllowedFields(contacts, keys)
+        && hasRequiredFields(contacts, keys)
+        && contacts.email is string
+        && (contacts.email == '' || isValidEmail(contacts.email))
+        && isValidOptionalUrl(contacts.github)
+        && isValidOptionalUrl(contacts.linkedin)
+        && isValidOptionalUrl(contacts.instagram)
+        && isValidOptionalUrl(contacts.youtube);
+    }
+
+    function isValidPersonal(personal) {
+      let keys = [
+        'name',
+        'displayName',
+        'headline',
+        'subheadline',
+        'university',
+        'faculty',
+        'statusBadge',
+        'location',
+        'bio',
+        'roles',
+        'contacts'
+      ];
+      return personal is map
+        && hasOnlyAllowedFields(personal, keys)
+        && hasRequiredFields(personal, keys)
+        && isBoundedString(personal.name, 1, 120)
+        && isBoundedString(personal.displayName, 1, 120)
+        && isBoundedString(personal.headline, 0, 300)
+        && isBoundedString(personal.subheadline, 0, 600)
+        && isBoundedString(personal.university, 0, 200)
+        && isBoundedString(personal.faculty, 0, 200)
+        && isBoundedString(personal.statusBadge, 0, 120)
+        && isBoundedString(personal.location, 0, 120)
+        && isValidBioList(personal.bio)
+        && isValidRolesList(personal.roles)
+        && isValidContacts(personal.contacts);
+    }
+
+    function isValidArsenal(arsenal) {
+      let keys = ['tech', 'creative', 'leadership'];
+      return arsenal is map
+        && hasOnlyAllowedFields(arsenal, keys)
+        && hasRequiredFields(arsenal, keys)
+        && isValidListBounds(arsenal.tech, 0, 25)
+        && isValidListBounds(arsenal.creative, 0, 25)
+        && isValidListBounds(arsenal.leadership, 0, 25);
+    }
+
+    function isValidPortfolioContent(data) {
+      let topLevelKeys = [
+        'personal',
+        'stats',
+        'arsenal',
+        'projects',
+        'gallery',
+        'leadershipPillars',
+        'updatedAt'
+      ];
+      return data is map
+        && hasOnlyAllowedFields(data, topLevelKeys)
+        && hasRequiredFields(data, topLevelKeys)
+        && isValidPersonal(data.personal)
+        && isValidListBounds(data.stats, 1, 8)
+        && isValidArsenal(data.arsenal)
+        && isValidListBounds(data.projects, 0, 40)
+        && isValidListBounds(data.gallery, 0, 40)
+        && isValidListBounds(data.leadershipPillars, 1, 8)
+        && data.updatedAt is timestamp
+        && data.updatedAt == request.time;
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    // Public portfolio singleton document
+    match /portfolio/content {
+      // Allow direct document reads (getDoc / onSnapshot) for public visitors
+      allow get: if true;
+
+      // Disallow collection listing/enumeration queries
+      allow list: if false;
+
+      // Only the verified owner can create or update with valid schema & bounds
+      allow create: if isVerifiedOwner() && isValidPortfolioContent(request.resource.data);
+      allow update: if isVerifiedOwner() && isValidPortfolioContent(request.resource.data);
+
+      // Prevent accidental deletion of the live portfolio document
+      allow delete: if false;
+    }
+
+    // Default deny all other collections, documents, and subcollections
     match /{document=**} {
       allow read, write: if false;
     }

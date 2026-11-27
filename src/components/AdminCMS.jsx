@@ -142,7 +142,7 @@ export default function AdminCMS({ onExit }) {
     setSaving(true);
     setStatusMsg(null);
     try {
-      await savePortfolioContent(draft, user.email);
+      await savePortfolioContent(draft);
       setDirty(false);
       setDbExists(true);
       setStatusMsg({ type: 'success', text: 'Saved to Firebase Firestore.' });

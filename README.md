@@ -35,9 +35,9 @@ Open `http://localhost:5173/` for the portfolio and `http://localhost:5173/#/adm
    - Go to **Build → Firestore Database → Create database** (Production mode).
    - Deploy `firestore.rules` (included in this repo) via Firebase Console Rules tab or Firebase CLI:
      ```bash
-     firebase login --reauth
-     firebase use --add
-     firebase deploy --only firestore:rules
+     npx -y firebase-tools@latest login --reauth
+     npx -y firebase-tools@latest use --add
+     npx -y firebase-tools@latest deploy --only firestore:rules
      ```
 3. **Enable Google Authentication:**
    - Go to **Build → Authentication → Get started → Sign-in method → Google → Enable**.
